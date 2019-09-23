@@ -43,7 +43,7 @@ int * getLapTime(){
 int main(){
     int * lap;
     lap = getLapTime();
-    printf(lap[0] , " - " , lap[1] , " - " , lap[2] , " - " , lap[3]);
+    printf("Segment 1: %d Segment 2 : %d Segment 3: %d || Total : %d ",lap[0], lap[1] , lap[2] , lap[3]);
     return 0; // fin du programme
 }
 
