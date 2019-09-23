@@ -12,12 +12,26 @@
         `.`----'.'                                     `.`----'.'
           `""""'                                         `""""'
  */
+ 
+
 #include <stdio.h>
 #include <stdlib.h>
 
 int carList[] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
 int mainBoard[sizeof(carList)][5]; // tableau global des voitures et des temps
 int * lap;
+
+/*
+* structure des voitures
+*/
+struct car {
+    int number = -1;
+    bool stands = false;
+    bool out = false;
+    
+    int essais[3];
+    int qualif[3];
+}
 
 /**
  * renvois un nombre compris entre 40 et 45 secondes pour le
