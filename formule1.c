@@ -78,8 +78,8 @@ void showTurn(){
 int main(){
     srand(time(NULL)); // init unique du random
 
-    genOneTurn();
-    showTurn();
+    genOneTurn(); // generation de un tour
+    showTurn(); // affichage du tour
 
     return 0; // fin du programme - logout de la console
 }
