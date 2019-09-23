@@ -18,7 +18,7 @@
 #include <stdlib.h>
 
 int carList[] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
-int mainBoard[sizeof(carList)][5]; // tableau global des voitures et des temps
+int mainBoard[sizeof(carListNumber)]; // tableau global des voitures et des temps
 int * lap;
 
 /*
@@ -29,8 +29,19 @@ struct car {
     bool stands = false;
     bool out = false;
     
-    int essais[3];
-    int qualif[3];
+    int essais[4];
+    int qualif[4];
+}
+
+/**
+* generation de la liste des structur voitrure sur base de la liste des numero de voitures
+* @return void
+*/
+void initCar(int *carListNumber){
+    struct car carList[sizeof(carListNumber)];
+    for(int i = 0; i < sizeof(carListNumber); i++){
+        carList[i].number = carListNumber[i];
+    }
 }
 
 /**
@@ -55,12 +66,12 @@ int * getLapTime(){
 }
 
 /**
- * fonction de génération d'un tour de chacune des voitures par secteurs et total
+ * fonction de génération d'un tour de chacune des voitures par secteurs
  * @return void
  */
 void genOneTurn(){
-    for (int i = 0; i < sizeof(carList); i++){ // pour la liste des voitures
-        mainBoard[i][0] = carList[i];
+    for (int i = 0; i < sizeof(carListNumber); i++){ // pour la liste des voitures
+        mainBoard[i][0] = carListNumber[i];
         lap = getLapTime(); // génération des secteurs et tu total pour la voiture
         for (int j = 0; j < sizeof(lap); j++){ // remplissage du mainboard des lap pour les voitures
             mainBoard[i][j+1] = lap[j];
