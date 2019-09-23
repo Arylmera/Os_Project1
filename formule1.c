@@ -10,8 +10,25 @@
 ▒▒▒▒█░░░█▄▄▄▄▄▄▄▄▄▄█░█▄▄▄▄▄▄▄▄▄█
 ▒▒▒▒█▄▄█░░█▄▄█░░░░░░█▄▄█░░█▄▄█
  */
+#include <stdio.h>
+
+int carList[] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
+double mainBoard[sizeof(carList)];
 
 
+int main(){
+
+    int lap[] = getLapTime();
+    printf(lap[0] + " - " + lap[1] + " - " + lap[2] + " - " + lap[3]);
+    return 0; // fin du programme
+}
+
+int getLapTime() {
+    int lap[] = {45 - (rand() % 6), 45 - (rand() % 6), 45 - (rand() % 6), 0};
+    lap[3] = lap[0] + lap[1] + lap[2];
+
+    return lap;
+}
 
 /*
 ░░░░░░░░░░░░░░░░░░░░░▄▀░░▌
