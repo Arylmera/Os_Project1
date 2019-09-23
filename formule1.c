@@ -21,7 +21,7 @@ double mainBoard[sizeof(carList)];
  * @return integer between 40 and 45
  */
 int getRandomTime(){
-    return 45 - (rand() % 6)
+    return 45 - (rand() % 6);
 }
 
 /**
