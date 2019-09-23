@@ -16,31 +16,34 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-int carList[] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
+int carListNumber[] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
 int mainBoard[sizeof(carListNumber)]; // tableau global des voitures et des temps
-int * lap;
 
-/*
+/**
 * structure des voitures
 */
 struct car {
-    int number = -1;
-    bool stands = false;
-    bool out = false;
+    int number;
+    bool stands;
+    bool out;
     
     int essais[4];
     int qualif[4];
-}
+};
+
+struct car carList[sizeof(carListNumber)];
 
 /**
 * generation de la liste des structur voitrure sur base de la liste des numero de voitures
 * @return void
 */
 void initCar(int *carListNumber){
-    struct car carList[sizeof(carListNumber)];
     for(int i = 0; i < sizeof(carListNumber); i++){
         carList[i].number = carListNumber[i];
+        carList[i].stands = false;
+        carList[i].out = false;
     }
 }
 
@@ -54,45 +57,31 @@ int getRandomTime(){
 }
 
 /**
- * génération d'un tableau conprenand le temps des sections et du temps total
- * pour les voitures sous forme de pointeur
- * @return array int *
+ * generation du tour d'essais pour la voiture passé en param
+ * @param current
  */
-int * getLapTime(){
+void genLapTime(struct car current){
     int lap[] = {getRandomTime(), getRandomTime(), getRandomTime(), 0};
     lap[3] = lap[0] + lap[1] + lap[2];
 
-    return lap;
+    current.essais = lap;
 }
 
 /**
- * fonction de génération d'un tour de chacune des voitures par secteurs
- * @return void
+ * génération des essais pour toutes les voitures
  */
-void genOneTurn(){
-    for (int i = 0; i < sizeof(carListNumber); i++){ // pour la liste des voitures
-        mainBoard[i][0] = carListNumber[i];
-        lap = getLapTime(); // génération des secteurs et tu total pour la voiture
-        for (int j = 0; j < sizeof(lap); j++){ // remplissage du mainboard des lap pour les voitures
-            mainBoard[i][j+1] = lap[j];
-        }
+void genEssais(){
+    for(int i = 0; i < sizeof(carList); i++){
+        genLapTime(carList[i]);
     }
 }
 
 /**
  * affichage en console du tour qui vient d'etre effectué
  */
-void showTurn(){
-    for (int i = 0; i < sizeof(mainBoard[0]) ; i++) {
-        printf("La voiture numéro %d ces temps de segments et tour sont : \n", mainBoard[i][0]);
-        for (int j = 1; j <= sizeof(mainBoard[i][0]); j++){
-            if(j == sizeof(mainBoard[i][0])){
-                printf("Total : %d\n", mainBoard[i][j]);
-            }
-            else {
-                printf("Secteur %d : %d\n",j,mainBoard[i][j]);
-            }
-        }
+void show(){
+    for(int i = 0; i < sizeof(carList); i++){
+        printf("Numéro de voiture : %d \nS1 : %d || S2 : %d || S3 : %d || Total : %d\n",carList->number,carList->essais[0],carList->essais[1],carList->essais[2],carList->essais[3]);
     }
 }
 
@@ -103,8 +92,8 @@ void showTurn(){
 int main(){
     srand(time(NULL)); // init unique du random
 
-    genOneTurn(); // generation de un tour
-    showTurn(); // affichage du tour
+    genEssais(); // generation de un tour
+    show(); // affichage du tour
 
     return 0; // fin du programme - logout de la console
 }
