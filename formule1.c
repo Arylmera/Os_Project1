@@ -20,9 +20,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h> //access
+#include <string.h> //strcat
+#include <errno.h> //error number
+#include <sys/stat.h> //mkdir
 
 #define TURN 3
 #define CAR 20
+//FILE *file;
+
 /**
 * structure des voitures
 */
@@ -44,7 +50,7 @@ int mainBoard[CAR]; // tableau global des voitures et des temps
 struct car carList[CAR];
 
 /***********************************************************************************************************************
- *                              Début des fonctions du programme
+ *                               fonctions
  **********************************************************************************************************************/
 
 /**
@@ -122,14 +128,48 @@ void genEssais(){
 }
 
 /**
- * affichage en console du tour qui vient d'etre effectué
+ * écriture du fichier d'essais
+ */
+void printEssais(){
+    FILE * file = fopen("./essais.txt","w+"); // ouverture du fichier essais.txt
+    if(!file){
+        printf("erreur lors de l'écriture du ficher essais");
+    }
+    else {
+        fprintf(file, "-----------------------------------------------------------------------\n");
+        fprintf(file, "|                                                                     |\n");
+        fprintf(file, "|                         résultat des essais                         |\n");
+        fprintf(file, "|                                                                     |\n");
+        fprintf(file, "-----------------------------------------------------------------------\n");
+        for (int i = 0; i < CAR; i++) {
+            fprintf(file, "\n Numéro de voiture : %d \n", carList[i].number);
+            for (int j = 0; j < TURN; j++) {
+                fprintf(file, "TOUR %d || S1 : %d | S2 : %d | S3 : %d |--| Total : %d\n",
+                        (j + 1),
+                        carList[i].essais[j][0], carList[i].essais[j][1], carList[i].essais[j][2],
+                        carList[i].essais[j][3]);
+            }
+            fprintf(file, "nombre d'arrets au stand %d\n", carList[i].standsNumber);
+            fprintf(file, "temps passé au stand %d", carList[i].stands);
+            fprintf(file, "\n");
+        }
+        fclose(file); // fermeture du fichier des essais
+    }
+    printf("Fichier essais.txt crée à l'emplacement ");
+    char cpath[1024];
+    getcwd(cpath, sizeof(cpath));
+    printf("%s\n",cpath);
+}
+
+/**
+ * affichage en console des essais
  */
 void showEssais(){
-    printf("***********************************************************************\n");
-    printf("*                                                                     *\n");
-    printf("*                         résultat des essais                         *\n");
-    printf("*                                                                     *\n");
-    printf("***********************************************************************\n");
+    printf("-----------------------------------------------------------------------\n");
+    printf("|                                                                     |\n");
+    printf("|                         résultat des essais                         |\n");
+    printf("|                                                                     |\n");
+    printf("-----------------------------------------------------------------------\n");
     for(int i = 0; i < CAR; i++){
         printf("\n Numéro de voiture : %d \n",carList[i].number);
         for(int j = 0; j < TURN; j++){
@@ -151,13 +191,23 @@ void showEssais(){
 int main(){
     srand(time(NULL)); // init unique du random
     initCar(carListNumber); // initalisation des l'array des struct car
+
+    //
     // gestion des essais
+    //
     genEssais(); // generation des 3 tours d essais
     standStop(carList); // arret au stand
-    showEssais(); // affichage du tour
-    // gestion des qualif
+    showEssais();
+    // écriture des essais
+    printEssais(); // affichage du tour
 
+    //
+    // gestion des qualif
+    //
+
+    //
     // gestion de la course
+    //
 
     return 0; // fin du programme - logout de la console
 }
