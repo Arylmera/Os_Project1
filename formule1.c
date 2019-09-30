@@ -84,6 +84,14 @@ int genRandomStand(){
 }
 
 /**
+ * génération nombre entre 1 et 100
+ * @return int between 1 and 100
+ */
+int genRandom(){
+    return 100 - (rand() % 100);
+}
+
+/**
  * ajout du temps des arrets au stands pour les voitures
  * @param current
  */
@@ -94,12 +102,13 @@ void standStop(struct car *current){
             current[i].standsNumber = standNumber;
             int standTotalTime = 0;
             for (int k = 0; k < standNumber; k++) {
-
                 standTotalTime += genRandomStand();
             }
-            current[i].essais[j][2] += standTotalTime;
-            current[i].essais[j][3] += standTotalTime;
-            current[i].stands += standTotalTime;
+            if (current[i].essais[j][0] != 0) { // si la voiture n'as pas abandonnée
+                current[i].essais[j][2] += standTotalTime;
+                current[i].essais[j][3] += standTotalTime;
+                current[i].stands += standTotalTime;
+            }
         }
     }
 }
@@ -121,8 +130,13 @@ void genLapTime(int *currentLap){
  */
 void genEssais(){
     for(int i = 0; i < CAR; i++){
-        for(int j = 0; j < 3; j++) {
+        bool leave = false;
+        for(int j = 0; j < 3 && !leave; j++) {
             genLapTime(carList[i].essais[j]);
+            if (genRandom() < 5 && j < 2){ // 5% de chances d'abandonner et un tour commancé est terminé
+                leave = true;
+                carList[i].out = true;
+            }
         }
     }
 }
@@ -151,11 +165,14 @@ void printEssais(){
             }
             fprintf(file, "nombre d'arrets au stand %d\n", carList[i].standsNumber);
             fprintf(file, "temps passé au stand %d", carList[i].stands);
+            if (carList[i].out){
+                fprintf(file,"\n----- la voiture a du abandonner -----");
+            }
             fprintf(file, "\n");
         }
         fclose(file); // fermeture du fichier des essais
     }
-    printf("Fichier essais.txt crée à l'emplacement ");
+    printf("\n Fichier essais.txt crée à l'emplacement ");
     char cpath[1024];
     getcwd(cpath, sizeof(cpath));
     printf("%s\n",cpath);
@@ -180,6 +197,9 @@ void showEssais(){
         }
         printf("nombre d'arret au stand %d\n",carList[i].standsNumber);
         printf("temps passé au stand %d",carList[i].stands);
+        if (carList[i].out){
+            printf("\n \033[1;31m la voiture a du abandonner \033[0m \n");
+        }
         printf("\n");
     }
 }
