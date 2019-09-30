@@ -28,11 +28,11 @@
 */
 struct car {
     int number;
-    bool stands;
+    int stands;
     bool out;
 
-    int essais[4];
-    int qualif[4];
+    int essais[3][4];
+    int qualif[3][4];
 };
 
 /**
@@ -53,7 +53,7 @@ struct car carList[CAR];
 void initCar(int *carListNumber){
     for(int i = 0; i < CAR; i++){
         carList[i].number = carListNumber[i];
-        carList[i].stands = false;
+        carList[i].stands = 0;
         carList[i].out = false;
     }
 }
@@ -68,15 +68,39 @@ int getRandomTime(){
 }
 
 /**
+ * génération du temps d'arret au stand
+ * @return integer between 2 and 5
+ */
+int genRandomStand(){
+    return standTime = 5 - (rand() % 3);
+}
+
+/**
+ * ajout du temps des arrets au stands pour les voitures
+ * @param current
+ */
+void standStop(struct car *current){
+    for(int i = 0; i < CAR; i++){
+        int standNumber = 3 - (rand() % 2);
+        int standTotalTime = 0;
+        for(int j = 0; j < standNumber; j++){
+            standTotalTime += genRandomStand();
+        }
+
+    }
+}
+
+/**
  * generation du tour d'essais pour la voiture passé en param
  * @param current
  */
-void genLapTime(struct car current){
+void genLapTime(int *current){
     int lap[] = {getRandomTime(), getRandomTime(), getRandomTime(), 0};
     lap[3] = lap[0] + lap[1] + lap[2];
-
+    //printf("LAP %d %d %d\n",lap[0],lap[1],lap[2],lap[3]);
     for(int i = 0; i < LAP; i++){
-        current.essais[i] = lap[i];
+        current = lap[i];
+        //printf("%d %d \n",current.essais[i],lap[i]);
     }
 }
 
@@ -85,7 +109,10 @@ void genLapTime(struct car current){
  */
 void genEssais(){
     for(int i = 0; i < CAR; i++){
-        genLapTime(carList[i]);
+        //printf("GEN ESSAIS \n");
+        for(int j = 0; j < 3; j++) {
+            genLapTime(&carList[i].essais[j]);
+        }
     }
 }
 
@@ -94,7 +121,7 @@ void genEssais(){
  */
 void show(){
     for(int i = 0; i < CAR; i++){
-        printf("Numéro de voiture : %d \nS1 : %d || S2 : %d || S3 : %d |--| Total : %d\n",carList->number,carList->essais[0],carList->essais[1],carList->essais[2],carList->essais[3]);
+        printf("Numéro de voiture : %d \nS1 : %d || S2 : %d || S3 : %d |--| Total : %d\n",carList[i].number,carList[i].essais[0],carList[i].essais[1],carList[i].essais[2],carList[i].essais[3]);
     }
 }
 
@@ -107,6 +134,7 @@ int main(){
 
     initCar(carListNumber);
     genEssais(); // generation de un tour
+    standStop(&carList); // arret au stand
     show(); // affichage du tour
 
     return 0; // fin du programme - logout de la console
