@@ -29,6 +29,7 @@
 struct car {
     int number;
     int stands;
+    int standsNumber;
     bool out;
 
     int essais[TURN][4];
@@ -54,6 +55,7 @@ void initCar(int *carListNumber){
     for(int i = 0; i < CAR; i++){
         carList[i].number = carListNumber[i];
         carList[i].stands = 0;
+        carList[i].standsNumber = 0;
         carList[i].out = false;
     }
 }
@@ -82,23 +84,22 @@ int genRandomStand(){
 void standStop(struct car *current){
     for(int i = 0; i < CAR; i++){
         for (int j = 0; j < TURN; j++) {
-            int standNumber = 3 - (rand() % 2);
+            int standNumber = 3 - (rand() % 3);
+            current[i].standsNumber = standNumber;
             int standTotalTime = 0;
             for (int k = 0; k < standNumber; k++) {
+
                 standTotalTime += genRandomStand();
             }
-            //printf("stand total time %d for turn-- ", standTotalTime);
             current[i].essais[j][2] += standTotalTime;
             current[i].essais[j][3] += standTotalTime;
             current[i].stands += standTotalTime;
-            //printf("stand total time for car || %d || for turn %d\n",current[i].stands,j+1);
         }
-        //printf("| voiture %d |\n",current[i].number);
     }
 }
 
 /**
- * generation du tour d'essais pour la voiture passé en param
+ * generation du tour pour la voiture passé en param
  * @param current
  */
 void genLapTime(int *currentLap){
@@ -123,16 +124,23 @@ void genEssais(){
 /**
  * affichage en console du tour qui vient d'etre effectué
  */
-void show(){
+void showEssais(){
+    printf("***********************************************************************\n");
+    printf("*                                                                     *\n");
+    printf("*                         résultat des essais                         *\n");
+    printf("*                                                                     *\n");
+    printf("***********************************************************************\n");
     for(int i = 0; i < CAR; i++){
-        printf("Numéro de voiture : %d \n",carList[i].number);
+        printf("\n Numéro de voiture : %d \n",carList[i].number);
         for(int j = 0; j < TURN; j++){
-            printf("TOUR %d |--| S1 : %d || S2 : %d || S3 : %d |--| Temps au stand : %d |--| Total : %d\n",
+            printf("TOUR %d || S1 : %d | S2 : %d | S3 : %d |--| Total : %d\n",
                     (j+1),
                     carList[i].essais[j][0],carList[i].essais[j][1],carList[i].essais[j][2],
-                    carList[i].stands,
                     carList[i].essais[j][3]);
         }
+        printf("nombre d'arret au stand %d\n",carList[i].standsNumber);
+        printf("temps passé au stand %d",carList[i].stands);
+        printf("\n");
     }
 }
 
@@ -142,19 +150,14 @@ void show(){
  */
 int main(){
     srand(time(NULL)); // init unique du random
-
-    //printf("initialisation des voitures \n");
     initCar(carListNumber); // initalisation des l'array des struct car
-    //printf("done \n");
-    //printf("gen des essais \n");
+    // gestion des essais
     genEssais(); // generation des 3 tours d essais
-    //printf("done \n");
-    //printf("ajout des arrets aux stands \n");
     standStop(carList); // arret au stand
-    //printf("done \n");
-    //printf("affichage des voitures \n");
-    show(); // affichage du tour
-    //printf("done \n");
+    showEssais(); // affichage du tour
+    // gestion des qualif
+
+    // gestion de la course
 
     return 0; // fin du programme - logout de la console
 }
