@@ -87,12 +87,13 @@ void standStop(struct car *current){
             for (int k = 0; k < standNumber; k++) {
                 standTotalTime += genRandomStand();
             }
-            printf("stand total time %d -- ", standTotalTime);
+            //printf("stand total time %d for turn-- ", standTotalTime);
             current[i].essais[j][2] += standTotalTime;
             current[i].essais[j][3] += standTotalTime;
             current[i].stands += standTotalTime;
-            printf("stand total time for car %d \n", current[i].stands);
+            //printf("stand total time for car || %d || for turn %d\n",current[i].stands,j+1);
         }
+        //printf("| voiture %d |\n",current[i].number);
     }
 }
 
@@ -142,10 +143,18 @@ void show(){
 int main(){
     srand(time(NULL)); // init unique du random
 
-    initCar(carListNumber);
-    genEssais(); // generation de un tour
-    standStop(&carList[CAR]); // arret au stand
+    //printf("initialisation des voitures \n");
+    initCar(carListNumber); // initalisation des l'array des struct car
+    //printf("done \n");
+    //printf("gen des essais \n");
+    genEssais(); // generation des 3 tours d essais
+    //printf("done \n");
+    //printf("ajout des arrets aux stands \n");
+    standStop(carList); // arret au stand
+    //printf("done \n");
+    //printf("affichage des voitures \n");
     show(); // affichage du tour
+    //printf("done \n");
 
     return 0; // fin du programme - logout de la console
 }
