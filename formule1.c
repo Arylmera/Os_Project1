@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define LAP 4
+#define CAR 20
 /**
 * structure des voitures
 */
@@ -36,10 +38,9 @@ struct car {
 /**
  * Variables Globales
  */
-
 int carListNumber[] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
-int mainBoard[sizeof(carListNumber)]; // tableau global des voitures et des temps
-struct car carList[sizeof(carListNumber)];
+int mainBoard[CAR]; // tableau global des voitures et des temps
+struct car carList[CAR];
 
 /***********************************************************************************************************************
  *                              Début des fonctions du programme
@@ -50,7 +51,7 @@ struct car carList[sizeof(carListNumber)];
 * @return void
 */
 void initCar(int *carListNumber){
-    for(int i = 0; i < sizeof(carListNumber); i++){
+    for(int i = 0; i < CAR; i++){
         carList[i].number = carListNumber[i];
         carList[i].stands = false;
         carList[i].out = false;
@@ -74,7 +75,7 @@ void genLapTime(struct car current){
     int lap[] = {getRandomTime(), getRandomTime(), getRandomTime(), 0};
     lap[3] = lap[0] + lap[1] + lap[2];
 
-    for(int i = 0; i < sizeof(current.essais); i++){
+    for(int i = 0; i < LAP; i++){
         current.essais[i] = lap[i];
     }
 }
@@ -83,7 +84,7 @@ void genLapTime(struct car current){
  * génération des essais pour toutes les voitures
  */
 void genEssais(){
-    for(int i = 0; i < sizeof(carList); i++){
+    for(int i = 0; i < CAR; i++){
         genLapTime(carList[i]);
     }
 }
@@ -92,8 +93,8 @@ void genEssais(){
  * affichage en console du tour qui vient d'etre effectué
  */
 void show(){
-    for(int i = 0; i < sizeof(carList); i++){
-        printf("Numéro de voiture : %d \nS1 : %d || S2 : %d || S3 : %d || Total : %d\n",carList->number,carList->essais[0],carList->essais[1],carList->essais[2],carList->essais[3]);
+    for(int i = 0; i < CAR; i++){
+        printf("Numéro de voiture : %d \nS1 : %d || S2 : %d || S3 : %d |--| Total : %d\n",carList->number,carList->essais[0],carList->essais[1],carList->essais[2],carList->essais[3]);
     }
 }
 
@@ -104,6 +105,7 @@ void show(){
 int main(){
     srand(time(NULL)); // init unique du random
 
+    initCar(carListNumber);
     genEssais(); // generation de un tour
     show(); // affichage du tour
 
