@@ -133,7 +133,7 @@ void genEssais(){
         bool leave = false;
         for(int j = 0; j < 3 && !leave; j++) {
             genLapTime(carList[i].essais[j]);
-            if (genRandom() < 5 && j < 2){ // 5% de chances d'abandonner et un tour commancé est terminé
+            if (genRandom() < 2 && j < 2){ // 2% de chances d'abandonner et un tour commancé est terminé
                 leave = true;
                 carList[i].out = true;
             }
@@ -172,7 +172,7 @@ void printEssais(){
         }
         fclose(file); // fermeture du fichier des essais
     }
-    printf("\n Fichier essais.txt crée à l'emplacement ");
+    printf("\nFichier essais.txt crée à l'emplacement ");
     char cpath[1024];
     getcwd(cpath, sizeof(cpath));
     printf("%s\n",cpath);
