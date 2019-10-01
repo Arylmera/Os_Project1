@@ -163,7 +163,7 @@ void printEssais(){
                         carList[i].essais[j][0], carList[i].essais[j][1], carList[i].essais[j][2],
                         carList[i].essais[j][3]);
             }
-            fprintf(file, "nombre d'arrets au stand %d\n", carList[i].standsNumber);
+            fprintf(file, "nombre d'arrêts au stand %d\n", carList[i].standsNumber);
             fprintf(file, "temps passé au stand %d", carList[i].stands);
             if (carList[i].out){
                 fprintf(file,"\n----- la voiture a du abandonner -----");
