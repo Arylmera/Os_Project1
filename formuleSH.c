@@ -18,12 +18,14 @@
 #include <unistd.h> //fork
 #include <string.h> //strcat
 #include <sys/wait.h> //wait
+#include <sys/types.h>
+#include <sys/shm.h>
 
 #define TURN 3
 #define CAR 20
 #define KEY 666
 
-struct car {
+struct carTemplate {
     int number;
     int stands;
     int standsNumber;
@@ -34,7 +36,7 @@ struct car {
 };
 
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
-
+struct carTemplate carList[CAR];
 /***********************************************************************************************************************
  *                               fonctions
  **********************************************************************************************************************/
@@ -66,12 +68,61 @@ int genRandom(){
     return 100 - (rand() % 100);
 }
 
+/**
+* generation de la liste des structur voitrure sur base de la liste des numero de voitures
+* @return void
+*/
+void initCar(int *carListNumber){
+    for(int i = 0; i < CAR; i++){
+        carList[i].number = carListNumber[i];
+        carList[i].stands = 0;
+        carList[i].out = false;
+        carList[i].essais = {0};
+        carList[i].qualif = {0};
+    }
+}
+
+/**
+ * gestion des tours d essais des voitures
+ * @param shmid id de la memoire partagée
+ * @return -1 if error else 0
+ */
+int genCar(int shmid){
+    for(int car = 0; car < CAR; car++){
+        int pid = fork();
+        if (pid < 0){
+            printf("error on creation of car %d",car);
+            return -1;
+        }
+        else if (pid > 0){ // parent
+            char *input = (char*) shmat(shmid,(void*)0,0);
+            printf("receveid in the parent %s",input);
+            shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
+        }
+        else { //son
+            char *output = (char*) shmat(shmid,void(*)0,0);
+            sprintf(output,"dans la voiture %d",car);
+            shmdt(output); // détachement de la memoire paratgée
+        }
+    }
+
+    return 0; // si tout c'est bien passé
+}
+
 void main(){
-    int shmid = shmget(KEY,CAR,0775); // 0775 || user = 7 | groupe = 7 | other = 5
+    initCar(carListNumber);
+
+    int shmid = shmget(KEY,CAR, 0775); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
-        printf("ERROR on Shared Memory");
+        printf("ERROR in creation of the Shared Memory");
         return;
     }
+
+    if(genCar(shmid)){
+        return("ERRO in essais");
+    }
+
+    return 0; // fin du programme
 }
 
 /***********************************************************************************************************************
