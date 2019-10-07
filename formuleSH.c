@@ -108,7 +108,7 @@ int genSeg(int shmid,int turn,int seg){
             printf("lecture du père dans le output \n");
             for (int i = 0; i < CAR; i++){
                 printf("Time for car %d is : %d \n",carListNumber[i],input[i]);
-                carList[carListNumber[i]].circuit[turn][seg] = input[i];
+                carList[i].circuit[turn][seg] = input[i];
             }
         }
         //
@@ -126,14 +126,15 @@ int genSeg(int shmid,int turn,int seg){
 }
 
 int main(){
+    // initalisation des voitures
     initCar(carListNumber);
-
+    // allocation de la mem partagée
     int shmid = shmget(KEY, (sizeof(int))*20,IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
         printf("ERROR in creation of the Shared Memory \n");
         return 1;
     }
-
+    // generation des segments
     genSeg(shmid,0,0); // generation du segment 1 du tour 1
     genSeg(shmid,0,2); // generation du segment 2 du tour 1
     genSeg(shmid,0,3); // generation du segment 3 du tour 1
