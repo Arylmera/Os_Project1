@@ -77,8 +77,8 @@ void initCar(int *carListNumber){
         carList[i].number = carListNumber[i];
         carList[i].stands = 0;
         carList[i].out = false;
-        carList[i].essais = {0};
-        carList[i].qualif = {0};
+        memset(carList[i].essais, 0, sizeof(carList[i].essais));
+        memset(carList[i].qualif, 0, sizeof(carList[i].qualif));
     }
 }
 
@@ -91,17 +91,20 @@ int genCar(int shmid){
     for(int car = 0; car < CAR; car++){
         int pid = fork();
         if (pid < 0){
-            printf("error on creation of car %d",car);
+            printf("error on creation of car %d \n",car);
             return -1;
         }
         else if (pid > 0){ // parent
-            char *input = (char*) shmat(shmid,(void*)0,0);
-            printf("receveid in the parent %s",input);
-            shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
+            char *input = (char*) shmat(shmid,0,0);
+            for (int i = 0; i < CAR; i++){
+                printf("Time for car %d is : %d",i,input[i]);
+            }
         }
         else { //son
-            char *output = (char*) shmat(shmid,void(*)0,0);
-            sprintf(output,"dans la voiture %d",car);
+            char *output = (char*) shmat(shmid,0,0);
+            *output = output[CAR];
+            sprintf(output,genSection(),carList[CAR-1].number);
+            printf("fin du tour de la voiture %d \n", CAR);
             shmdt(output); // détachement de la memoire paratgée
         }
     }
@@ -109,19 +112,21 @@ int genCar(int shmid){
     return 0; // si tout c'est bien passé
 }
 
-void main(){
+int main(){
     initCar(carListNumber);
 
     int shmid = shmget(KEY,CAR, 0775); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
-        printf("ERROR in creation of the Shared Memory");
-        return;
+        printf("ERROR in creation of the Shared Memory \n");
+        return 1;
     }
 
     if(genCar(shmid)){
-        return("ERRO in essais");
+        printf("ERROR in essais \n");
+        return 1;
     }
 
+    shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
     return 0; // fin du programme
 }
 
