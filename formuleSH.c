@@ -47,7 +47,7 @@ struct carTemplate carList[CAR];
  */
 int genSection(){
     int time = 45 - (rand() % 9);
-    sleep(time/40);
+    sleep(time/20);
     return time; // gestion du random et du temps perdu
 }
 
@@ -87,39 +87,34 @@ void initCar(int *carListNumber){
  */
 int genSeg(int shmid,int turn,int seg){
     printf("generation des temps \n");
-    for(int car = 0; car < CAR; car++){
-        printf("création de la voiture %d (id %d) \n",carListNumber[car],car);
+    for(int car = 0; car < CAR; car++) {
+        //printf("création de la voiture %d (id %d) \n", carListNumber[car], car);
         int pid = fork();
-        if (pid < 0){
-            printf("error on creation of car %d \n",car);
+        if (pid < 0) {
+            printf("error on creation of car %d \n", car);
             return -1;
         }
-        //
-        // Parent
-        //
-        else if (pid > 0){
-            // attente de la fin des fils
-            int status = 0;
-            pid_t wpid;
-            while ((wpid = wait(&status)) > 0);
-
-            // récupération des données de la sm
-            int *input = (int*) shmat(shmid,0,0);
-            printf("lecture du père dans le output \n");
-            for (int i = 0; i < CAR; i++){
-                printf("Time for car %d is : %d \n",carListNumber[i],input[i]);
-                carList[i].circuit[turn][seg] = input[i];
-            }
-        }
-        //
-        // Son
-        //
-        else {
-            int *output = (int*) shmat(shmid,0,0);
-            int time = genSection();
-            printf("temps de la voiture %d (id %d) : %d \n",carListNumber[car],car,time);
+            /* Son */
+        else if (pid == 0) {
+            //printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
+            int *output = (int *) shmat(shmid, 0, 0);
+            int time = genSection(); // generation du temps aléatoire
             output[car] = time;
+            printf("Voiture %d , temps de section : %d \n",carListNumber[car],time);
+            exit(EXIT_SUCCESS);
         }
+    }
+    /* Parent */
+    // attente de la fin des fils
+    int status = 0;
+    pid_t wpid;
+    while ((wpid = wait(&status)) > 0);
+    // récupération des données de la SM
+    int *input = (int*) shmat(shmid,0,0);
+    printf("lecture du père dans le output \n");
+    for (int i = 0; i < CAR; i++){
+        printf("Time for car %d is : %d \n",carListNumber[i],input[i]);
+        carList[i].circuit[turn][seg] = input[i];
     }
 
     return 0; // si tout c'est bien passé
