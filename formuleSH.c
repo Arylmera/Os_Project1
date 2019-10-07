@@ -86,9 +86,7 @@ void initCar(int *carListNumber){
  * @return -1 if error else 0
  */
 int genSeg(int shmid,int turn,int seg){
-    printf("generation des temps \n");
     for(int car = 0; car < CAR; car++) {
-        //printf("création de la voiture %d (id %d) \n", carListNumber[car], car);
         int pid = fork();
         if (pid < 0) {
             printf("error on creation of car %d \n", car);
@@ -96,11 +94,9 @@ int genSeg(int shmid,int turn,int seg){
         }
             /* Son */
         else if (pid == 0) {
-            //printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
             int *output = (int *) shmat(shmid, 0, 0);
             int time = genSection(); // generation du temps aléatoire
             output[car] = time;
-            printf("Voiture %d , temps de section : %d \n",carListNumber[car],time);
             exit(EXIT_SUCCESS);
         }
     }
@@ -111,13 +107,33 @@ int genSeg(int shmid,int turn,int seg){
     while ((wpid = wait(&status)) > 0);
     // récupération des données de la SM
     int *input = (int*) shmat(shmid,0,0);
-    printf("lecture du père dans le output \n");
+    printf("récupération des temps \n");
     for (int i = 0; i < CAR; i++){
-        printf("Time for car %d is : %d \n",carListNumber[i],input[i]);
-        carList[i].circuit[turn][seg] = input[i];
+        carList[i].circuit[turn][seg] = input[i]; // ajout du temps du segment
+        carList[i].circuit[turn][3] += input[i]; // ajout au temps total
+        printf("fin de la sauvegarde des temps du segment \n");
     }
 
+    printf("retour du segment \n");
     return 0; // si tout c'est bien passé
+}
+
+/**
+ * affichage du tableau de résultat de tout les tours pour toutes les voitures et sections
+ */
+void showRun(){
+    printf("-------------------------------------------------\n");
+    for(int car = 0; car < CAR; car++){
+        for (int turn = 0; turn < TURN; turn++){
+            printf("Voiture %d || turn : %d || S1 : %d | S2 : %d | S3 %d || Total Turn : %d \n",carList[car].number,
+                    turn,
+                    carList[car].circuit[turn][0],
+                    carList[car].circuit[turn][1],
+                    carList[car].circuit[turn][2],
+                    carList[car].circuit[turn][3]);
+        }
+    }
+    printf("-------------------------------------------------\n");
 }
 
 int main(){
@@ -130,9 +146,17 @@ int main(){
         return 1;
     }
     // generation des segments
-    genSeg(shmid,0,0); // generation du segment 1 du tour 1
-    genSeg(shmid,0,2); // generation du segment 2 du tour 1
-    genSeg(shmid,0,3); // generation du segment 3 du tour 1
+    for(int turn = 0; turn < TURN; ++turn){
+        for(int seg = 0; seg < 3; ++seg){
+            printf("\nSection %d du tour %d \n\n",seg,turn);
+            genSeg(shmid,turn,seg); // generation du segment n du tour m
+        }
+        printf("Fin du tour %d \n",turn);
+    }
+    printf("tout les tours sont terminé \n");
+
+    printf("affichage des Résultats : \n");
+    showRun();
 
     printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
