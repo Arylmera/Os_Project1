@@ -31,8 +31,7 @@ struct carTemplate {
     int standsNumber;
     bool out;
 
-    int essais[TURN][4];
-    int qualif[TURN][4];
+    int circuit[TURN][4];
 };
 
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
@@ -48,7 +47,7 @@ struct carTemplate carList[CAR];
  */
 int genSection(){
     int time = 45 - (rand() % 9);
-    sleep(time/10);
+    sleep(time/40);
     return time; // gestion du random et du temps perdu
 }
 
@@ -77,8 +76,7 @@ void initCar(int *carListNumber){
         carList[i].number = carListNumber[i];
         carList[i].stands = 0;
         carList[i].out = false;
-        memset(carList[i].essais, 0, sizeof(carList[i].essais));
-        memset(carList[i].qualif, 0, sizeof(carList[i].qualif));
+        memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
     }
 }
 
@@ -87,25 +85,36 @@ void initCar(int *carListNumber){
  * @param shmid id de la memoire partagée
  * @return -1 if error else 0
  */
-int genCar(int shmid){
+int genSeg(int shmid,int turn,int seg){
+    printf("generation des temps \n");
     for(int car = 0; car < CAR; car++){
+        printf("création de la voiture %d (id %d) \n",carListNumber[car],car);
         int pid = fork();
         if (pid < 0){
             printf("error on creation of car %d \n",car);
             return -1;
         }
         else if (pid > 0){ // parent
-            char *input = (char*) shmat(shmid,0,0);
+            int status = 0;
+            pid_t wpid;
+            while ((wpid = wait(&status)) > 0); // attente de la fin des fils
+
+            int *input = (int*) shmat(shmid,0,0);
+            printf("lecture du père dans le output \n");
             for (int i = 0; i < CAR; i++){
-                printf("Time for car %d is : %d",i,input[i]);
+                printf("Time for car %d is : %d \n",carListNumber[i],input[i]);
+                carList[carListNumber[i]].circuit[turn][seg] = input[i];
             }
         }
         else { //son
-            char *output = (char*) shmat(shmid,0,0);
-            *output = output[CAR];
-            sprintf(output,genSection(),carList[CAR-1].number);
-            printf("fin du tour de la voiture %d \n", CAR);
-            shmdt(output); // détachement de la memoire paratgée
+            int *output = (int*) shmat(shmid,0,0);
+            *output = output[car];
+
+            int time = genSection();
+            printf("temps de la voiture %d (id %d) : %d \n",carListNumber[car],car,time);
+            output[car] = time;
+
+            //shmdt(output); // détachement de la memoire paratgée
         }
     }
 
@@ -115,17 +124,15 @@ int genCar(int shmid){
 int main(){
     initCar(carListNumber);
 
-    int shmid = shmget(KEY,CAR, 0775); // 0775 || user = 7 | groupe = 7 | other = 5
+    int shmid = shmget(KEY, sizeof(int)*20,IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
         printf("ERROR in creation of the Shared Memory \n");
         return 1;
     }
 
-    if(genCar(shmid)){
-        printf("ERROR in essais \n");
-        return 1;
-    }
+    genSeg(shmid,0,0); // generation du segment 1 du tour 1
 
+    printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
     return 0; // fin du programme
 }
