@@ -94,9 +94,11 @@ int genSeg(int shmid,int turn,int seg){
         }
             /* Son */
         else if (pid == 0) {
+            srand(time()+getpid()); // génération d'unnouveau random pour chaque fils
             int *output = (int *) shmat(shmid, 0, 0);
-            int time = genSection(); // generation du temps aléatoire
-            output[car] = time;
+            int temps = genSection(); // generation du temps aléatoire
+            printf("%d \n",temps);
+            output[car] = temps;
             exit(EXIT_SUCCESS);
         }
     }
@@ -111,7 +113,7 @@ int genSeg(int shmid,int turn,int seg){
     for (int i = 0; i < CAR; i++){
         carList[i].circuit[turn][seg] = input[i]; // ajout du temps du segment
         carList[i].circuit[turn][3] += input[i]; // ajout au temps total
-        printf("fin de la sauvegarde des temps du segment \n");
+        printf("fin de la sauvegarde des temps du segment : %d \n",input[i]);
     }
 
     printf("retour du segment \n");
