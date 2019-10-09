@@ -115,8 +115,6 @@ int genSeg(int shmid,int turn,int seg){
         carList[i].circuit[turn][seg] = input[i]; // ajout du temps du segment
         carList[i].totalTime += input[i]; // ajout au temps total
     }
-
-    printf("retour du segment \n");
     return 0; // si tout c'est bien passé
 }
 
@@ -134,7 +132,7 @@ void showRun(){
     clrscr();
     for (int turn = 0; turn < TURN; turn++){
         for(int car = 0; car < CAR; car++){
-            printf("Voiture %3d || turn : %2d ||\tS1 : %d \t|\tS2 : %d \t|\tS3 : %d \t||\tTotal Turn : %d \n",carList[car].number,
+            printf("Voiture %3d || turn : %3d ||S1 : %1d | S2 : %2d | S3 : %2d  || Total Turn : %3d \n",carList[car].number,
                    turn+1,
                    carList[car].circuit[turn][0],
                    carList[car].circuit[turn][1],
@@ -155,24 +153,13 @@ int main(){
         return 1;
     }
     // generation des segments
-    /*
     for(int turn = 0; turn < TURN; ++turn){
         for(int seg = 0; seg < SECTION; ++seg){
-            printf("\nSection %d du tour %d \n\n",seg,turn);
+            printf("\nSection %d du tour %d \n\n",seg+1,turn+1);
             genSeg(shmid,turn,seg); // generation du segment n du tour m
         }
-        printf("Fin du tour %d \n",turn);
+        printf("|| Fin du tour %d \n",turn+1);
     }
-     */
-    genSeg(shmid,0,0);
-    genSeg(shmid,0,1);
-    genSeg(shmid,0,2);
-    genSeg(shmid,1,0);
-    genSeg(shmid,1,1);
-    genSeg(shmid,1,2);
-    genSeg(shmid,2,0);
-    genSeg(shmid,2,1);
-    genSeg(shmid,2,2);
 
     printf("tout les tours sont terminé \n");
 
