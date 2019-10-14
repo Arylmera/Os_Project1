@@ -49,7 +49,7 @@ f1 carList[CAR];
  */
 int genSection(){
     int time = 45 - (rand() % 9);
-    //sleep(time/20);
+    sleep(time/20);
     return time; // gestion du random et du temps perdu
 }
 
@@ -106,7 +106,8 @@ int gen_circuit(int shmid){
     for(int car = 0; car < CAR; car++) {
         int pid = fork();
         if (pid < 0) {
-            printf("error on creation of car %d \n", car);
+            perror("error on creation of car");
+            printf("\n");
             return -1;
         }
             /* Son */
@@ -118,6 +119,7 @@ int gen_circuit(int shmid){
             for(int i = 0; i < TURN; i++){
                 for(int j = 0; j < SECTION; j++){
                     currentCar.circuit[i][j] = genSection();
+                    printf("car %d , %d \n",currentCar.number,currentCar.circuit[i][j]);
                     output = &currentCar;
                 }
             }
@@ -130,8 +132,9 @@ int gen_circuit(int shmid){
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
 
-    while ((wpid = wait(&status)) <= 0){ // temps que un processus est en cours
+    while ((wpid = wait(&status)) < 0){ // temps que un processus est en cours
         memcpy(&carList, &input, sizeof(input));
+        showRun();
     }
 
 
@@ -167,9 +170,11 @@ int main(){
     // initalisation des voitures
     init_car_list(carListNumber);
     // allocation de la mem partagée
-    int shmid = shmget(KEY, sizeof(f1)*20, IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
+    int shmid = shmget(KEY, (20 * sizeof(f1)),0775 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
-        printf("ERROR in creation of the Shared Memory \n");
+        perror("ERROR in creation of the Shared Memory");
+        printf("\n");
+        shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
         return 1;
     }
     // gestion du circuit
