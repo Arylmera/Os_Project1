@@ -26,8 +26,7 @@
 #define KEY 666
 #define SECTION 3
 
-typedef struct carTemplate f1;
-struct carTemplate {
+typedef struct {
     int number;
     int stands;
     int standsNumber;
@@ -35,10 +34,10 @@ struct carTemplate {
     int totalTime;
 
     int circuit[TURN][SECTION];
-};
+} f1;
 
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
-struct carTemplate carList[CAR];
+f1 carList[CAR];
 /***********************************************************************************************************************
  *                               fonctions
  **********************************************************************************************************************/
@@ -88,7 +87,7 @@ void init_car_list(int *carListNumber){
  * initalistation de la voiture passé en param
  * @param carNumber
  */
-f1 init_car(int *carNumber){
+f1 init_car(int carNumber){
     f1 tmp;
     tmp.number = carNumber;
     tmp.stands = 0;
@@ -114,8 +113,7 @@ int gen_circuit(int shmid){
         else if (pid == 0) {
             srand(time()+getpid()); // génération du nouveau random pour chaque fils
             f1 *output = (f1 *) shmat(shmid, 0, 0);
-            int number = carListNumber[car];
-            f1 currentCar = init_car(&number);
+            f1 currentCar = init_car(carListNumber[car]);
 
             for(int i = 0; i < TURN; i++){
                 for(int j = 0; j < SECTION; j++){
@@ -133,11 +131,9 @@ int gen_circuit(int shmid){
     f1 *input = (f1*) shmat(shmid,0,0);
 
     while ((wpid = wait(&status)) <= 0){ // temps que un processus est en cours
-        for(int car = 0; car < CAR; car++){
-            carList[car] = input[car];
-            memcpy(&carList[car], &input[car], sizeof(input[car]));
-        }
+        memcpy(&carList, &input, sizeof(input));
     }
+
 
     return 0; // si tout c'est bien passé
 }
@@ -171,19 +167,17 @@ int main(){
     // initalisation des voitures
     init_car_list(carListNumber);
     // allocation de la mem partagée
-    int shmid = shmget(KEY, (sizeof(f1)*20), IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
+    int shmid = shmget(KEY, sizeof(f1)*20, IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
         printf("ERROR in creation of the Shared Memory \n");
         return 1;
     }
-
+    // gestion du circuit
     gen_circuit(shmid);
-
     printf("tout les tours sont terminé \n");
-
     printf("affichage des Résultats : \n");
     showRun();
-
+    // fin de la course
     printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
     return 0; // fin du programme
