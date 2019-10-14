@@ -22,14 +22,14 @@
 #include <sys/shm.h>
 
 #define TURN 3
+#define SECTION 3
 #define CAR 20
 #define KEY 666
-#define SECTION 3
+#define STANDPOURCENT 10
 
 typedef struct {
     int number;
     int stands;
-    int standsNumber;
     bool out;
     int totalTime;
 
@@ -141,11 +141,16 @@ int gen_circuit(int shmid){
             f1 *output = (f1 *) shmat(shmid, 0, 0);
             f1 currentCar = init_car(carListNumber[car]);
 
-            for(int i = 0; i < TURN; i++){
-                for(int j = 0; j < SECTION; j++){
+            for(int i = 0; i < TURN; i++){ // pour chaque tour
+                for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
                     currentCar.circuit[i][j] = genSection();
                     printf("car %d , %d \n",currentCar.number,currentCar.circuit[i][j]);
                     output = &currentCar;
+                }
+                if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar.stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
+                    currentCar.circuit[i][SECTION-1] += genRandomStand();
+                    printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n",currentCar.number,currentCar.circuit[i][SECTION-1]);
+                    currentCar.stands++;
                 }
             }
             exit(EXIT_SUCCESS);
