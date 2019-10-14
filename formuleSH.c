@@ -70,6 +70,31 @@ int genRandom(){
 }
 
 /**
+ * clear de la console
+ */
+void clrscr(){
+    system("clear");
+}
+
+/**
+ * affichage du tableau de résultat de tout les tours pour toutes les voitures et sections
+ */
+void showRun(){
+    clrscr();
+    for (int turn = 0; turn < TURN; turn++){
+        for(int car = 0; car < CAR; car++){
+            printf("Voiture %3d || turn : %3d ||S1 : %1d | S2 : %2d | S3 : %2d  || Total Turn : %3d \n",carList[car].number,
+                   turn+1,
+                   carList[car].circuit[turn][0],
+                   carList[car].circuit[turn][1],
+                   carList[car].circuit[turn][2],
+                   carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
+        }
+        printf("---------------------------------------------------------------------------------------------------------------\n");
+    }
+}
+
+/**
 * generation de la liste des structur voitrure sur base de la liste des numero de voitures
 * @return void
 */
@@ -131,39 +156,13 @@ int gen_circuit(int shmid){
     pid_t wpid;
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
-
-    while ((wpid = wait(&status)) < 0){ // temps que un processus est en cours
+    do{ // temps que un processus est en cours
         memcpy(&carList, &input, sizeof(input));
         showRun();
-    }
+    }while ((wpid = wait(&status)) > 0);
 
 
     return 0; // si tout c'est bien passé
-}
-
-/**
- * clear de la console
- */
-void clrscr(){
-    system("clear");
-}
-
-/**
- * affichage du tableau de résultat de tout les tours pour toutes les voitures et sections
- */
-void showRun(){
-    clrscr();
-    for (int turn = 0; turn < TURN; turn++){
-        for(int car = 0; car < CAR; car++){
-            printf("Voiture %3d || turn : %3d ||S1 : %1d | S2 : %2d | S3 : %2d  || Total Turn : %3d \n",carList[car].number,
-                   turn+1,
-                   carList[car].circuit[turn][0],
-                   carList[car].circuit[turn][1],
-                   carList[car].circuit[turn][2],
-                   carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
-        }
-        printf("---------------------------------------------------------------------------------------------------------------\n");
-    }
 }
 
 int main(){
