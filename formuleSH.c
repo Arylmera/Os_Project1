@@ -26,6 +26,7 @@
 #define KEY 666
 #define SECTION 3
 
+typedef struct carTemplate f1;
 struct carTemplate {
     int number;
     int stands;
@@ -73,7 +74,7 @@ int genRandom(){
 * generation de la liste des structur voitrure sur base de la liste des numero de voitures
 * @return void
 */
-void initCar(int *carListNumber){
+void init_car_list(int *carListNumber){
     for(int i = 0; i < CAR; i++){
         carList[i].number = carListNumber[i];
         carList[i].stands = 0;
@@ -84,11 +85,25 @@ void initCar(int *carListNumber){
 }
 
 /**
+ * initalistation de la voiture passé en param
+ * @param carNumber
+ */
+f1 init_car(int *carNumber){
+    f1 tmp;
+    tmp.number = carNumber;
+    tmp.stands = 0;
+    tmp.out = false;
+    tmp.totalTime = 0;
+    memset(tmp.circuit, 0, sizeof(tmp.circuit));
+    return tmp;
+}
+
+/**
  * gestion des tours d essais des voitures
  * @param shmid id de la memoire partagée
  * @return -1 if error else 0
  */
-int genSeg(int shmid,int turn,int seg){
+int gen_circuit(int shmid){
     for(int car = 0; car < CAR; car++) {
         int pid = fork();
         if (pid < 0) {
@@ -98,23 +113,32 @@ int genSeg(int shmid,int turn,int seg){
             /* Son */
         else if (pid == 0) {
             srand(time()+getpid()); // génération du nouveau random pour chaque fils
-            int *output = (int *) shmat(shmid, 0, 0);
-            int temps = genSection(); // generation du temps aléatoire
-            output[car] = temps;
+            f1 *output = (f1 *) shmat(shmid, 0, 0);
+            int number = carListNumber[car];
+            f1 currentCar = init_car(&number);
+
+            for(int i = 0; i < TURN; i++){
+                for(int j = 0; j < SECTION; j++){
+                    currentCar.circuit[i][j] = genSection();
+                    output = &currentCar;
+                }
+            }
             exit(EXIT_SUCCESS);
         }
     }
     /* Parent */
-    // attente de la fin des fils
     int status = 0;
     pid_t wpid;
-    while ((wpid = wait(&status)) > 0);
     // récupération des données de la SM
-    int *input = (int*) shmat(shmid,0,0);
-    for (int i = 0; i < CAR; i++){
-        carList[i].circuit[turn][seg] = input[i]; // ajout du temps du segment
-        carList[i].totalTime += input[i]; // ajout au temps total
+    f1 *input = (f1*) shmat(shmid,0,0);
+
+    while ((wpid = wait(&status)) <= 0){ // temps que un processus est en cours
+        for(int car = 0; car < CAR; car++){
+            carList[car] = input[car];
+            memcpy(&carList[car], &input[car], sizeof(input[car]));
+        }
     }
+
     return 0; // si tout c'est bien passé
 }
 
@@ -145,21 +169,15 @@ void showRun(){
 
 int main(){
     // initalisation des voitures
-    initCar(carListNumber);
+    init_car_list(carListNumber);
     // allocation de la mem partagée
-    int shmid = shmget(KEY, (sizeof(int))*20,IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
+    int shmid = shmget(KEY, (sizeof(f1)*20), IPC_CREAT|0775); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
         printf("ERROR in creation of the Shared Memory \n");
         return 1;
     }
-    // generation des segments
-    for(int turn = 0; turn < TURN; ++turn){
-        for(int seg = 0; seg < SECTION; ++seg){
-            printf("\nSection %d du tour %d \n\n",seg+1,turn+1);
-            genSeg(shmid,turn,seg); // generation du segment n du tour m
-        }
-        printf("|| Fin du tour %d \n",turn+1);
-    }
+
+    gen_circuit(shmid);
 
     printf("tout les tours sont terminé \n");
 
