@@ -120,8 +120,7 @@ f1 init_car(int carNumber){
     tmp.totalTime = 0;
     memset(tmp.circuit, 0, sizeof(tmp.circuit));
     return tmp;
-}
-
+} 
 /**
  * gestion des tours d essais des voitures
  * @param shmid id de la memoire partagée
