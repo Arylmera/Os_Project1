@@ -130,14 +130,14 @@ void circuit_son(int shmid,int carPosition){
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     f1 *currentCar;
     srand(time()+getpid()); // génération du nouveau random pour chaque fils
-
+    printf("récupération de la strcuct voiture");
     for(int i = 0; i < CAR; i++){
         if(output[i].number == carNumber){
             currentCar = &output[i];
             break;
         }
     }
-
+    printf("struct voiture récupérée");
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
             currentCar->circuit[i][j] = genSection();
@@ -188,6 +188,7 @@ int gen_circuit(int shmid) {
     }
     /* Parent */
     circuit_father(shmid);
+    return 0;
 }
 
 /**
