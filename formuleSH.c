@@ -120,42 +120,43 @@ f1 init_car(int carNumber){
     tmp.totalTime = 0;
     memset(tmp.circuit, 0, sizeof(tmp.circuit));
     return tmp;
-} 
-/**
- * gestion des tours d essais des voitures
- * @param shmid id de la memoire partagée
- * @return -1 if error else 0
- */
-int gen_circuit(int shmid){
-    for(int car = 0; car < CAR; car++) {
-        int pid = fork();
-        if (pid < 0) {
-            perror("error on creation of car");
-            printf("\n");
-            return -1;
-        }
-            /* Son */
-        else if (pid == 0) {
-            srand(time()+getpid()); // génération du nouveau random pour chaque fils
-            f1 *output = (f1 *) shmat(shmid, 0, 0);
-            f1 currentCar = init_car(carListNumber[car]);
+}
 
-            for(int i = 0; i < TURN; i++){ // pour chaque tour
-                for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
-                    currentCar.circuit[i][j] = genSection();
-                    printf("car %d , %d \n",currentCar.number,currentCar.circuit[i][j]);
-                    output = &currentCar;
-                }
-                if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar.stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
-                    currentCar.circuit[i][SECTION-1] += genRandomStand();
-                    printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n",currentCar.number,currentCar.circuit[i][SECTION-1]);
-                    currentCar.stands++;
-                }
-            }
-            exit(EXIT_SUCCESS);
+/**
+ * fonction du code du fils ( voiture )
+ */
+void circuit_son(int shmid,int carPosition){
+    int carNumber = carListNumber[carPosition];
+    f1 *output = (f1 *) shmat(shmid, 0, 0);
+    f1 *currentCar;
+    srand(time()+getpid()); // génération du nouveau random pour chaque fils
+
+    for(int i = 0; i < CAR; i++){
+        if(output[i].number == carNumber){
+            currentCar = &output[i];
+            break;
         }
     }
-    /* Parent */
+
+    for(int i = 0; i < TURN; i++){ // pour chaque tour
+        for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
+            currentCar->circuit[i][j] = genSection();
+            printf("car %d , %d \n",currentCar->number,currentCar->circuit[i][j]);
+        }
+        if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
+            currentCar->circuit[i][SECTION-1] += genRandomStand();
+            printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n",currentCar->number,currentCar->circuit[i][SECTION-1]);
+            currentCar->stands++;
+        }
+    }
+    exit(EXIT_SUCCESS);
+}
+
+/**
+ * fonction du père
+ * @return
+ */
+int circuit_father(int shmid){
     int status = 0;
     pid_t wpid;
     // récupération des données de la SM
@@ -167,8 +168,43 @@ int gen_circuit(int shmid){
     return 0; // si tout c'est bien passé
 }
 
+/**
+ * gestion des tours d essais des voitures
+ * @param shmid id de la memoire partagée
+ * @return -1 if error else 0
+ */
+int gen_circuit(int shmid) {
+    for (int car = 0; car < CAR; car++) {
+        int pid = fork();
+        if (pid < 0) {
+            perror("error on creation of car");
+            printf("\n");
+            return -1;
+        }
+            /* Son */
+        else if (pid == 0) {
+            circuit_son(shmid,car);
+        }
+    }
+    /* Parent */
+    circuit_father(shmid);
+}
+
+/**
+ * initalisation de la shared memory
+ */
+void init_mem(shmid){
+    f1 *mem = (f1 *) shmat(shmid, 0, 0);
+    for(int i = 0; i < CAR; i++){
+        mem[i] = init_car(carListNumber[CAR-1]);
+    }
+}
+
+/**
+ *
+ * @return
+ */
 int main(){
-    shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée pour etre sur de ne pas mélanger les programmes
     // initalisation des voitures
     init_car_list(carListNumber);
     // allocation de la mem partagée
@@ -179,6 +215,7 @@ int main(){
         shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
         return 1;
     }
+    init_mem(shmid);
     // gestion du circuit
     gen_circuit(shmid);
     printf("tout les tours sont terminé \n");
