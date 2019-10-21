@@ -164,16 +164,15 @@ int gen_circuit(int shmid){
         memcpy(&carList, &input, sizeof(input));
         showRun();
     }while ((wpid = wait(&status)) > 0);
-
-
     return 0; // si tout c'est bien passé
 }
 
 int main(){
+    shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée pour etre sur de ne pas mélanger les programmes
     // initalisation des voitures
     init_car_list(carListNumber);
     // allocation de la mem partagée
-    int shmid = shmget(KEY, (20 * sizeof(f1)),0775 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
+    int shmid = shmget(KEY, (20 * sizeof(f1)),0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
         perror("ERROR in creation of the Shared Memory");
         printf("\n");
