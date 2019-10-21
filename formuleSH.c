@@ -123,9 +123,10 @@ f1 init_car(int carNumber){
 }
 
 /**
- * fonction du code du fils ( voiture )
+ * fonction du code du fils (voiture)
  */
 void circuit_son(int shmid,int carPosition){
+    printf("dans le fils %d",carPosition);
     int carNumber = carListNumber[carPosition];
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     f1 *currentCar;
