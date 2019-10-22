@@ -142,6 +142,7 @@ void circuit_son(int shmid,int carPosition){
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
             currentCar->circuit[i][j] = genSection();
+            printf("%d \n",currentCar->circuit[i][j]);
             printf("car %d , %d \n",currentCar->number,currentCar->circuit[i][j]);
         }
         if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
@@ -157,16 +158,16 @@ void circuit_son(int shmid,int carPosition){
  * fonction du père
  * @return
  */
-int circuit_father(int shmid){
+void circuit_father(int shmid){
     int status = 0;
     pid_t wpid;
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
         memcpy(&carList, &input, sizeof(input));
-        showRun();
+        //showRun();
+        printf("show run here in father \n");
     }while ((wpid = wait(&status)) > 0);
-    return 0; // si tout c'est bien passé
 }
 
 /**
@@ -184,6 +185,7 @@ int gen_circuit(int shmid) {
         }
             /* Son */
         else if (pid == 0) {
+            printf("in son %d\n",car);
             circuit_son(shmid,car);
         }
     }
@@ -219,10 +221,12 @@ int main(){
     }
     init_mem(shmid);
     // gestion du circuit
+
     gen_circuit(shmid);
     printf("tout les tours sont terminé \n");
     printf("affichage des Résultats : \n");
-    showRun();
+    //showRun();
+
     // fin de la course
     printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
