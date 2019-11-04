@@ -126,14 +126,15 @@ f1 init_car(int carNumber){
  * fonction du code du fils (voiture)
  */
 void circuit_son(int shmid,int carPosition){
-    printf("dans le fils %d",carPosition);
     int carNumber = carListNumber[carPosition];
+    printf("in son %d : car number %d\n",carPosition,carNumber);
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     f1 *currentCar;
     srand(time()+getpid()); // génération du nouveau random pour chaque fils
-    printf("récupération de la strcuct voiture");
+    printf("récupération de la strcuct voiture %d \n",carNumber);
     for(int i = 0; i < CAR; i++){
         if(output[i].number == carNumber){
+            printf("récup de la struct voiture %d pour la voiture %d \n",i,carNumber);
             currentCar = &output[i];
             break;
         }
@@ -142,7 +143,7 @@ void circuit_son(int shmid,int carPosition){
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
             currentCar->circuit[i][j] = genSection();
-            printf("%d \n",currentCar->circuit[i][j]);
+            printf("in son %d \n",currentCar->circuit[i][j]);
             printf("car %d , %d \n",currentCar->number,currentCar->circuit[i][j]);
         }
         if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
@@ -185,7 +186,6 @@ int gen_circuit(int shmid) {
         }
             /* Son */
         else if (pid == 0) {
-            printf("in son %d\n",car);
             circuit_son(shmid,car);
         }
     }
@@ -200,7 +200,7 @@ int gen_circuit(int shmid) {
 void init_mem(shmid){
     f1 *mem = (f1 *) shmat(shmid, 0, 0);
     for(int i = 0; i < CAR; i++){
-        mem[i] = init_car(carListNumber[CAR-1]);
+        mem[i] = init_car(carListNumber[i]);
     }
 }
 
