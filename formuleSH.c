@@ -133,17 +133,17 @@ void circuit_son(int shmid,int carPosition){
     srand(time()+getpid()); // génération du nouveau random pour chaque fils
     printf("récupération de la strcuct voiture %d \n",carNumber);
     for(int i = 0; i < CAR; i++){
+        printf("carNumber output %d || carNumber %d \n",output[i].number,carNumber);
         if(output[i].number == carNumber){
             printf("récup de la struct voiture %d pour la voiture %d \n",i,carNumber);
             currentCar = &output[i];
             break;
         }
     }
-    printf("struct voiture récupérée");
+    //printf("struct voiture récupérée");
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
             currentCar->circuit[i][j] = genSection();
-            printf("in son %d \n",currentCar->circuit[i][j]);
             printf("car %d , %d \n",currentCar->number,currentCar->circuit[i][j]);
         }
         if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
@@ -167,7 +167,7 @@ void circuit_father(int shmid){
     do{ // temps que un processus est en cours
         memcpy(&carList, &input, sizeof(input));
         //showRun();
-        printf("show run here in father \n");
+        printf("show run here in father || %d %d %d\n",carList[4].circuit[1][0],carList[4].circuit[1][1],carList[4].circuit[1][2]);
     }while ((wpid = wait(&status)) > 0);
 }
 
