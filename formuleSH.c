@@ -127,20 +127,19 @@ f1 init_car(int carNumber){
  */
 void circuit_son(int shmid,int carPosition){
     int carNumber = carListNumber[carPosition];
-    printf("in son %d : car number %d\n",carPosition,carNumber);
+    //printf("in son %d : car number %d\n",carPosition,carNumber);
     f1 *output = (f1 *) shmat(shmid, 0, 0);
+    printf("Départ de la voiture %d\n",carNumber);
     f1 *currentCar;
     srand(time()+getpid()); // génération du nouveau random pour chaque fils
-    printf("récupération de la strcuct voiture %d \n",carNumber);
+    //printf("récupération de la strcuct voiture %d \n",carNumber);
     for(int i = 0; i < CAR; i++){
-        printf("carNumber output %d || carNumber %d \n",output[i].number,carNumber);
         if(output[i].number == carNumber){
-            printf("récup de la struct voiture %d pour la voiture %d \n",i,carNumber);
             currentCar = &output[i];
+            //printf("Récupération de :: output %d || carNumber %d || current car %d \n",output[i].number,carNumber,currentCar->number);
             break;
         }
     }
-    //printf("struct voiture récupérée");
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
             currentCar->circuit[i][j] = genSection();
@@ -164,11 +163,12 @@ void circuit_father(int shmid){
     pid_t wpid;
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
-    do{ // temps que un processus est en cours
+    while ((wpid = wait(&status)) > 0){ // temps que un processus est en cours
         memcpy(&carList, &input, sizeof(input));
+        printf("input %d %d %d \n",input[4].circuit[1][0],input[4].circuit[1][1],input[4].circuit[1][2]);
         //showRun();
         printf("show run here in father || %d %d %d\n",carList[4].circuit[1][0],carList[4].circuit[1][1],carList[4].circuit[1][2]);
-    }while ((wpid = wait(&status)) > 0);
+    }
 }
 
 /**
