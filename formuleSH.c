@@ -86,7 +86,6 @@ f1 init_car(int carNumber){
 */
 void init_car_list(int *carListNumber){
     for(int i = 0; i < CAR; i++){
-        //carList[i] = init_car;
         carList[i].number = carListNumber[i];
         carList[i].stands = 0;
         carList[i].in_stands = false;
@@ -107,7 +106,7 @@ void init_mem(shmid){
 }
 
 /***********************************************************************************************************************
- *                               fonctions génération
+ *                               fonctions supp
  **********************************************************************************************************************/
 
 /**
@@ -160,6 +159,32 @@ int gen_circuit(int shmid){
     return 0;
 }
 
+/**
+ * swap de 2 paramètre pour le bubbleSort
+ * @param x
+ * @param y
+ */
+void swap(f1 *x, f1 *y){
+    f1 temp = *x;
+    *x = *y;
+    *y = temp;
+}
+
+/**
+ * buubleSort
+ * @param arr
+ */
+void bubbleSortCarList(){
+    int size = (sizeof(carList)/sizeof(carList[0]));
+    for (int i = 0; i < size-1; i++){
+        for (int j = 0; j < size - i - 1; j++){
+            if (carList[j].totalTime > carList[j+1].totalTime){
+                swap(&carList[j], &carList[j+1]);
+            }
+        }
+    }
+}
+
 /***********************************************************************************************************************
  *                               fonctions affichage et de save
  **********************************************************************************************************************/
@@ -172,6 +197,9 @@ void clrscr(){
     printf ("\33c\e[3J");
 }
 
+/**
+ * renvois du char P si la voiture est au stand N si non
+ */
 char atStand(bool stand){
     if (stand){
         return 'P';
@@ -182,8 +210,9 @@ char atStand(bool stand){
 /**
  * affichage du tableau de résultat de tout les tours pour toutes les voitures et sections
  */
-void showRun(){
+void showRunTotal(){
     clrscr();
+    bubbleSortCarList();
     for (int turn = 0; turn < TURN; turn++){
         for(int car = 0; car < CAR; car++){
             printf(BLU"Voiture %3d "RED"||"RESET" turn : %1d "RED"||"RESET" "GRN"S1"RESET" : %1d | "GRN"S2"RESET" : %2d | "GRN"S3"RESET" : %2d  "RED"||"RESET" "CYN"At stands"RESET" : %c | "CYN"Stands stop"RESET" : %2d "RED"||"BLU"Total Turn"RESET" : %3d \n",carList[car].number,
@@ -196,6 +225,20 @@ void showRun(){
                    carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
         }
         printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
+    }
+}
+
+/**
+ * affichage des temps d'arrivé totaux
+ */
+void showRun(){
+    clrscr();
+    bubbleSortCarList();
+    for(int car = 0; car < CAR; car++){
+        printf(BLU"Voiture "RESET" %2d "RED"||"CYN" Nombre arrets aux stands : "RESET" %1d "RED"||"BLU" Temps Total : "RESET" %4d \n",
+                carList[car].number,
+                carList[car].stands,
+                carList[car].totalTime);
     }
 }
 
@@ -220,13 +263,16 @@ void circuit_son(int shmid,int carPosition){
     }
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
-            currentCar->circuit[i][j] = genSection();
+            int section_time = genSection();
+            currentCar->circuit[i][j] = section_time;
+            currentCar->totalTime += section_time;
         }
         if (genRandom() < STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
             currentCar->in_stands = true;
             int time_in_stands = genRandomStand();
             currentCar->circuit[i][SECTION-1] += time_in_stands;
-            sleep(time_in_stands/2);
+            currentCar->totalTime+= time_in_stands;
+            sleep(time_in_stands/10);
             printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n",currentCar->number,currentCar->circuit[i][SECTION-1]);
             currentCar->stands++;
             currentCar->in_stands = false;
@@ -246,7 +292,7 @@ void circuit_father(int shmid){
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
         memcpy(carList, input, sizeof(carList));
-        showRun();
+        showRunTotal();
     }while ((wpid = wait(&status)) > 0);
 }
 
