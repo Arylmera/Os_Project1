@@ -12,6 +12,7 @@
                 `.`----'.'                                     `.`----'.'
                   `""""'                                         `""""'
  **********************************************************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h> // bool
@@ -39,7 +40,7 @@
 #define SECTION 3
 #define CAR 20
 #define KEY 666
-#define STANDPOURCENT 10
+#define STANDPOURCENT 25
 
 /***********************************************************************************************************************
  *                               déclarations
@@ -48,6 +49,7 @@
 typedef struct {
     int number;
     int stands;
+    bool in_stands;
     bool out;
     int totalTime;
 
@@ -71,6 +73,7 @@ f1 init_car(int carNumber){
     f1 tmp;
     tmp.number = carNumber;
     tmp.stands = 0;
+    tmp.in_stands = false;
     tmp.out = false;
     tmp.totalTime = 0;
     memset(tmp.circuit, 0, sizeof(tmp.circuit));
@@ -83,8 +86,10 @@ f1 init_car(int carNumber){
 */
 void init_car_list(int *carListNumber){
     for(int i = 0; i < CAR; i++){
+        //carList[i] = init_car;
         carList[i].number = carListNumber[i];
         carList[i].stands = 0;
+        carList[i].in_stands = false;
         carList[i].out = false;
         carList[i].totalTime = 0;
         memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
@@ -112,7 +117,7 @@ void init_mem(shmid){
  */
 int genSection(){
     int time = 45 - (rand() % 9);
-    sleep(time/20);
+    sleep(time/10);
     return time; // gestion du random et du temps perdu
 }
 
@@ -156,7 +161,7 @@ int gen_circuit(int shmid){
 }
 
 /***********************************************************************************************************************
- *                               fonctions affichage
+ *                               fonctions affichage et de save
  **********************************************************************************************************************/
 
 /**
@@ -167,6 +172,13 @@ void clrscr(){
     printf ("\33c\e[3J");
 }
 
+char atStand(bool stand){
+    if (stand){
+        return 'P';
+    }
+    return 'N';
+}
+
 /**
  * affichage du tableau de résultat de tout les tours pour toutes les voitures et sections
  */
@@ -174,11 +186,13 @@ void showRun(){
     clrscr();
     for (int turn = 0; turn < TURN; turn++){
         for(int car = 0; car < CAR; car++){
-            printf(BLU"Voiture %3d "RESET"|| turn : %3d ||"GRN"S1 "RESET": %1d | "GRN"S2"RESET" : %2d | "GRN"S3"RESET" : %2d  || "BLU"Total Turn"RESET" : %3d \n",carList[car].number,
+            printf(BLU"Voiture %3d "RED"||"RESET" turn : %1d "RED"||"RESET" "GRN"S1"RESET" : %1d | "GRN"S2"RESET" : %2d | "GRN"S3"RESET" : %2d  "RED"||"RESET" "CYN"At stands"RESET" : %c | "CYN"Stands stop"RESET" : %2d "RED"||"BLU"Total Turn"RESET" : %3d \n",carList[car].number,
                    turn+1,
                    carList[car].circuit[turn][0],
                    carList[car].circuit[turn][1],
                    carList[car].circuit[turn][2],
+                   atStand(carList[car].in_stands),
+                   carList[car].stands,
                    carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
         }
         printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
@@ -194,28 +208,28 @@ void showRun(){
  */
 void circuit_son(int shmid,int carPosition){
     int carNumber = carListNumber[carPosition];
-    //printf("in son %d : car number %d\n",carPosition,carNumber);
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     printf("Départ de la voiture %d\n",carNumber);
     f1 *currentCar;
     srand(time()+getpid()); // génération du nouveau random pour chaque fils
-    //printf("récupération de la strcuct voiture %d \n",carNumber);
     for(int i = 0; i < CAR; i++){
         if(output[i].number == carNumber){
             currentCar = &output[i];
-            //printf("Récupération de :: output %d || carNumber %d || current car %d \n",output[i].number,carNumber,currentCar->number);
             break;
         }
     }
     for(int i = 0; i < TURN; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++){ // pour chaque section du tour
             currentCar->circuit[i][j] = genSection();
-            //printf("car %d , %d \n",currentCar->number,currentCar->circuit[i][j]);
         }
-        if (genRandom() > STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
-            currentCar->circuit[i][SECTION-1] += genRandomStand();
+        if (genRandom() < STANDPOURCENT || (i == (TURN-1) && currentCar->stands == 0)){ // 50% de s'arreter ou si jamais arrêter pendant la course
+            currentCar->in_stands = true;
+            int time_in_stands = genRandomStand();
+            currentCar->circuit[i][SECTION-1] += time_in_stands;
+            sleep(time_in_stands/2);
             printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n",currentCar->number,currentCar->circuit[i][SECTION-1]);
             currentCar->stands++;
+            currentCar->in_stands = false;
         }
     }
     exit(EXIT_SUCCESS);
@@ -230,12 +244,10 @@ void circuit_father(int shmid){
     pid_t wpid;
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
-    while ((wpid = wait(&status)) > 0){ // temps que un processus est en cours
+    do{ // temps que un processus est en cours
         memcpy(carList, input, sizeof(carList));
-        //printf("input %d %d %d \n",input[4].circuit[1][0],input[4].circuit[1][1],input[4].circuit[1][2]);
         showRun();
-        //printf("show run here in father || %d %d %d\n",carList[4].circuit[1][0],carList[4].circuit[1][1],carList[4].circuit[1][2]);
-    }
+    }while ((wpid = wait(&status)) > 0);
 }
 
 /***********************************************************************************************************************
@@ -249,6 +261,7 @@ void circuit_father(int shmid){
 int main(){
     // initalisation des voitures
     init_car_list(carListNumber);
+
     // allocation de la mem partagée
     int shmid = shmget(KEY, (20 * sizeof(f1)),0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1){
@@ -258,12 +271,12 @@ int main(){
         return 1;
     }
     init_mem(shmid);
-    // gestion du circuit
 
+    // gestion du circuit
     gen_circuit(shmid);
     printf("tout les tours sont terminé \n");
     printf("affichage des Résultats : \n");
-    //showRun();
+    showRun();
 
     // fin de la course
     printf("fin des tours \n");
