@@ -21,11 +21,29 @@
 #include <sys/types.h>
 #include <sys/shm.h>
 
+/***********************************************************************************************************************
+ *                               définitions
+ **********************************************************************************************************************/
+
+
+#define RED   "\x1B[31m"
+#define GRN   "\x1B[32m"
+#define YEL   "\x1B[33m"
+#define BLU   "\x1B[34m"
+#define MAG   "\x1B[35m"
+#define CYN   "\x1B[36m"
+#define WHT   "\x1B[37m"
+#define RESET "\x1B[0m"
+
 #define TURN 3
 #define SECTION 3
 #define CAR 20
 #define KEY 666
 #define STANDPOURCENT 10
+
+/***********************************************************************************************************************
+ *                               déclarations
+ **********************************************************************************************************************/
 
 typedef struct {
     int number;
@@ -35,11 +53,56 @@ typedef struct {
 
     int circuit[TURN][SECTION];
 } f1;
-
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
 f1 carList[CAR];
+
+
+void circuit_son(int shmid,int carPosition);
+void circuit_father(int shmid);
 /***********************************************************************************************************************
- *                               fonctions
+ *                               fonctions initalisation
+ **********************************************************************************************************************/
+
+/**
+ * initalistation de la voiture passé en param
+ * @param carNumber
+ */
+f1 init_car(int carNumber){
+    f1 tmp;
+    tmp.number = carNumber;
+    tmp.stands = 0;
+    tmp.out = false;
+    tmp.totalTime = 0;
+    memset(tmp.circuit, 0, sizeof(tmp.circuit));
+    return tmp;
+}
+
+/**
+* generation de la liste des structur voitrure sur base de la liste des numero de voitures
+* @return void
+*/
+void init_car_list(int *carListNumber){
+    for(int i = 0; i < CAR; i++){
+        carList[i].number = carListNumber[i];
+        carList[i].stands = 0;
+        carList[i].out = false;
+        carList[i].totalTime = 0;
+        memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
+    }
+}
+
+/**
+ * initalisation de la shared memory
+ */
+void init_mem(shmid){
+    f1 *mem = (f1 *) shmat(shmid, 0, 0);
+    for(int i = 0; i < CAR; i++){
+        mem[i] = init_car(carListNumber[i]);
+    }
+}
+
+/***********************************************************************************************************************
+ *                               fonctions génération
  **********************************************************************************************************************/
 
 /**
@@ -70,10 +133,38 @@ int genRandom(){
 }
 
 /**
+ * gestion des tours d essais des voitures
+ * @param shmid id de la memoire partagée
+ * @return -1 if error else 0
+ */
+int gen_circuit(int shmid){
+    for (int car = 0; car < CAR; car++) {
+        int pid = fork();
+        if (pid < 0) {
+            perror("error on creation of car");
+            printf("\n");
+            return -1;
+        }
+            /* Son */
+        else if (pid == 0) {
+            circuit_son(shmid,car);
+        }
+    }
+    /* Parent */
+    circuit_father(shmid);
+    return 0;
+}
+
+/***********************************************************************************************************************
+ *                               fonctions affichage
+ **********************************************************************************************************************/
+
+/**
  * clear de la console
  */
 void clrscr(){
     system("clear");
+    printf ("\33c\e[3J");
 }
 
 /**
@@ -83,44 +174,20 @@ void showRun(){
     clrscr();
     for (int turn = 0; turn < TURN; turn++){
         for(int car = 0; car < CAR; car++){
-            printf("Voiture %3d || turn : %3d ||S1 : %1d | S2 : %2d | S3 : %2d  || Total Turn : %3d \n",carList[car].number,
+            printf(BLU"Voiture %3d "RESET"|| turn : %3d ||"GRN"S1 "RESET": %1d | "GRN"S2"RESET" : %2d | "GRN"S3"RESET" : %2d  || "BLU"Total Turn"RESET" : %3d \n",carList[car].number,
                    turn+1,
                    carList[car].circuit[turn][0],
                    carList[car].circuit[turn][1],
                    carList[car].circuit[turn][2],
                    carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
         }
-        printf("---------------------------------------------------------------------------------------------------------------\n");
+        printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
     }
 }
 
-/**
-* generation de la liste des structur voitrure sur base de la liste des numero de voitures
-* @return void
-*/
-void init_car_list(int *carListNumber){
-    for(int i = 0; i < CAR; i++){
-        carList[i].number = carListNumber[i];
-        carList[i].stands = 0;
-        carList[i].out = false;
-        carList[i].totalTime = 0;
-        memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
-    }
-}
-
-/**
- * initalistation de la voiture passé en param
- * @param carNumber
- */
-f1 init_car(int carNumber){
-    f1 tmp;
-    tmp.number = carNumber;
-    tmp.stands = 0;
-    tmp.out = false;
-    tmp.totalTime = 0;
-    memset(tmp.circuit, 0, sizeof(tmp.circuit));
-    return tmp;
-}
+/***********************************************************************************************************************
+ *                               fonctions voitures
+ **********************************************************************************************************************/
 
 /**
  * fonction du code du fils (voiture)
@@ -171,38 +238,9 @@ void circuit_father(int shmid){
     }
 }
 
-/**
- * gestion des tours d essais des voitures
- * @param shmid id de la memoire partagée
- * @return -1 if error else 0
- */
-int gen_circuit(int shmid) {
-    for (int car = 0; car < CAR; car++) {
-        int pid = fork();
-        if (pid < 0) {
-            perror("error on creation of car");
-            printf("\n");
-            return -1;
-        }
-            /* Son */
-        else if (pid == 0) {
-            circuit_son(shmid,car);
-        }
-    }
-    /* Parent */
-    circuit_father(shmid);
-    return 0;
-}
-
-/**
- * initalisation de la shared memory
- */
-void init_mem(shmid){
-    f1 *mem = (f1 *) shmat(shmid, 0, 0);
-    for(int i = 0; i < CAR; i++){
-        mem[i] = init_car(carListNumber[i]);
-    }
-}
+/***********************************************************************************************************************
+ *                               fonctions Main
+ **********************************************************************************************************************/
 
 /**
  *
