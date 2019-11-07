@@ -201,20 +201,6 @@ void bubbleSortCarList(){
     }
 }
 
-void sortOut(){
-    int size = (sizeof(carList)/sizeof(carList[0]));
-    // gestion des voitures out en fin de liste
-    for(int i = 0; i < size; i++){
-        if(carList[i].out) {
-            for (int j = size; j > 1; j--) {
-                if(!carList[j].out){
-                    swap(&carList[i],&carList[j]);
-                }
-            }
-        }
-    }
-}
-
 /**
  * concaténation de 2 strings
  * @param s1 string => char[]
