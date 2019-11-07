@@ -178,9 +178,20 @@ void swap(f1 *x, f1 *y){
  */
 void bubbleSortCarList(){
     int size = (sizeof(carList)/sizeof(carList[0]));
+    // gestion des voitures out en fin de liste
+    for(int i = 0; i < size-1; i++){
+        if(carList[i].out) {
+            for (int j = size; j > 0; j--) {
+                if(!carList[j].out){
+                    swap(&carList[i],&carList[j]);
+                }
+            }
+        }
+    }
+    // tri des autres voitures
     for (int i = 0; i < size-1; i++){
         for (int j = 0; j < size - i - 1; j++){
-            if (carList[j].totalTime > carList[j+1].totalTime || (carList[j].out && !(carList[j+1].out)) ){
+            if (carList[j].totalTime > carList[j+1].totalTime && !carList[j+1].out){
                 swap(&carList[j], &carList[j+1]);
             }
         }
@@ -379,9 +390,10 @@ void outputData(){
     fprintf(file,"                                            Tableau des Résultats                                              \n");
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     for(int car = 0; car < CAR; car++){
-        fprintf(file,"Voiture %2d || Nombre arrêts aux stands : %1d || Temps Total : %4d \n",
+        fprintf(file,"Voiture %2d || Nombre arrêts aux stands : %1d || Out : %c || Temps Total : %4d \n",
                 carList[car].number,
                 carList[car].stands,
+                status(carList[car].in_stands,carList[car].out),
                 carList[car].totalTime);
     }
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
