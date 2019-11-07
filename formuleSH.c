@@ -41,6 +41,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
+#define SLEEPDIVISER 20
 
 /***********************************************************************************************************************
  *                               déclarations et variables globales
@@ -118,7 +119,7 @@ void init_mem(shmid){
  */
 int genSection(){
     int time = 45 - (rand() % 9);
-    sleep(time/10);
+    sleep(time/SLEEPDIVISER);
     return time; // gestion du random et du temps perdu
 }
 
@@ -127,7 +128,9 @@ int genSection(){
  * @return integer between 2 and 5
  */
 int genRandomStand(){
-    return  20 - (rand() % 5);
+    int time =  20 - (rand() % 5);
+    sleep(time/SLEEPDIVISER);
+    return time;
 }
 
 /**
@@ -178,21 +181,35 @@ void swap(f1 *x, f1 *y){
  */
 void bubbleSortCarList(){
     int size = (sizeof(carList)/sizeof(carList[0]));
+    // tri des autres voitures
+    for (int i = 0; i < size-1; i++){
+        for (int j = 0; j < size - i - 1; j++){
+            if (carList[j].totalTime > carList[j+1].totalTime){
+                swap(&carList[j], &carList[j+1]);
+            }
+        }
+    }
     // gestion des voitures out en fin de liste
-    for(int i = 0; i < size-1; i++){
+    for(int i = 0; i < size; i++){
         if(carList[i].out) {
-            for (int j = size; j > 0; j--) {
+            for (int j = size; j > i; j--) {
                 if(!carList[j].out){
                     swap(&carList[i],&carList[j]);
                 }
             }
         }
     }
-    // tri des autres voitures
-    for (int i = 0; i < size-1; i++){
-        for (int j = 0; j < size - i - 1; j++){
-            if (carList[j].totalTime > carList[j+1].totalTime && !carList[j+1].out){
-                swap(&carList[j], &carList[j+1]);
+}
+
+void sortOut(){
+    int size = (sizeof(carList)/sizeof(carList[0]));
+    // gestion des voitures out en fin de liste
+    for(int i = 0; i < size; i++){
+        if(carList[i].out) {
+            for (int j = size; j > 1; j--) {
+                if(!carList[j].out){
+                    swap(&carList[i],&carList[j]);
+                }
             }
         }
     }
@@ -338,26 +355,24 @@ void circuit_son(int shmid,int carPosition){
             if (currentCar->out){
                 currentCar->circuit[i][j] = 0;
             }
-            else{
+            else {
                 int section_time = genSection();
                 currentCar->circuit[i][j] = section_time;
                 currentCar->totalTime += section_time;
                 if (genRandom() < OUTPOURCENT) {
                     currentCar->out = true;
-                    printf("voiture %d a eu un problmème et est OUT", currentCar->number);
+                    //printf("voiture %d a eu un problmème et est OUT", currentCar->number);
                 }
-            }
-            if (genRandom() < STANDPOURCENT || (i == (TURN - 1) && currentCar->stands ==
-                                                                   0)) { // 50% de s'arreter ou si jamais arrêter pendant la course
-                currentCar->in_stands = true;
-                int time_in_stands = genRandomStand();
-                currentCar->circuit[i][SECTION - 1] += time_in_stands;
-                currentCar->totalTime += time_in_stands;
-                sleep(time_in_stands / 10);
-                printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n", currentCar->number,
-                       currentCar->circuit[i][SECTION - 1]);
-                currentCar->stands++;
-                currentCar->in_stands = false;
+
+                if (genRandom() < STANDPOURCENT || (i == (TURN - 1) && currentCar->stands == 0)) { // 50% de s'arreter ou si jamais arrêter pendant la course
+                    currentCar->in_stands = true;
+                    int time_in_stands = genRandomStand();
+                    currentCar->circuit[i][SECTION - 1] += time_in_stands;
+                    currentCar->totalTime += time_in_stands;
+                    //printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n", currentCar->number,currentCar->circuit[i][SECTION - 1]);
+                    currentCar->stands++;
+                    currentCar->in_stands = false;
+                }
             }
         }
     }
