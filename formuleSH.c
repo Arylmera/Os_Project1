@@ -317,6 +317,22 @@ void showWelcome(){
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
 }
 
+/**
+ * affichage des questions et intéractions pour la demande de nouvelle course de début de partie
+ * @return true si nouvelle partie false si non
+ */
+bool continueTheRace(){
+    printf("Do you plan to run a new race or do you continue one ?\n");
+    printf("enter : Y to continue \n");
+    printf("enter : N to start a new one \n");
+    char new_race;
+    scanf("%c",&new_race);
+    if (new_race == 'Y'){
+        return true;
+    }
+    return false;
+}
+
 /***********************************************************************************************************************
  *                               fonctions voitures
  **********************************************************************************************************************/
@@ -441,6 +457,14 @@ void outputData(){
 int main(int argc, char *argv[]) {
     // récupération des données de la course depuis un fichier
     showWelcome();
+    if(continueTheRace()){
+        printf("what's the name of your race ? \n");
+        // récupération des données de la course depuis le fichier de sauvgarde
+    }
+    else{
+        printf("let's start a new one then\n");
+        // demande des paramètres de course
+    }
 
     // initalisation des voitures
     init_car_list(carListNumber);
