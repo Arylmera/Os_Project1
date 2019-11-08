@@ -42,6 +42,7 @@
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
 #define SLEEPDIVISER 20
+#define PATH_SIZE 1024
 
 /***********************************************************************************************************************
  *                               déclarations et variables globales
@@ -60,6 +61,7 @@ typedef struct {
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
 f1 carList[CAR];
 FILE * file;
+char path[PATH_SIZE/2];
 
 void circuit_son(int shmid,int carPosition);
 void circuit_father(int shmid);
@@ -202,19 +204,17 @@ void bubbleSortCarList(){
 }
 
 /**
- * concaténation de 2 strings
- * @param s1 string => char[]
- * @param s2 string => char[]
- * @return string s1+s2
+ * return le path symbolique de l'emplacement d'exécution du programme
+ * @return char[1024]
  */
-char* concat(char *s1,char *s2)
-{
-    size_t len1 = strlen(s1);
-    size_t len2 = strlen(s2);
-    char *result = malloc(len1 + len2 + 1); // +1 pour \0
-    memcpy(result, s1, len1);
-    memcpy(result + len1, s2, len2 + 1); // +1 pour copier le \0
-    return result;
+void getPath(){
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        printf("Files will be saved to : %s\n", path);
+    }
+    else{
+        printf("buffer too small; need size %u to define the path of save\n", size);
+    }
 }
 
 /***********************************************************************************************************************
@@ -385,7 +385,6 @@ void circuit_father(int shmid){
 /***********************************************************************************************************************
  *                               fonctions Gestion des fichiers
  **********************************************************************************************************************/
-
 void outputData(){
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"                                            Tableau des Résultats                                              \n");
@@ -439,7 +438,7 @@ void outputData(){
  *
  * @return
  */
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     // récupération des données de la course depuis un fichier
     showWelcome();
 
@@ -447,11 +446,11 @@ int main(int argc, char *argv[]){
     init_car_list(carListNumber);
 
     // allocation de la mem partagée
-    int shmid = shmget(KEY, (20 * sizeof(f1)),0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
-    if (shmid == -1){
+    int shmid = shmget(KEY, (20 * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
+    if (shmid == -1) {
         perror("ERROR in creation of the Shared Memory");
         printf("\n");
-        shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
+        shmctl(shmid, IPC_RMID, NULL); // suppression de la memoire partagée
         return 1;
     }
     init_mem(shmid);
@@ -465,10 +464,16 @@ int main(int argc, char *argv[]){
     showRunTotal(1); // affichage récapitulatif avec bannière
 
     // génération du fichier de résultats
-    //char* path = concat("./",argv[0]);
-    //printf("Sauvegarde des données de course a : %s",path);
-    file = fopen("./Résultats.txt","w");
+    // récupération de l'emplacement d'exécution
+    getPath();
+    char* result_name = "-Résultats.txt";
+    char result_file_path[PATH_SIZE];
+    strcpy(result_file_path,path);
+    strcat(result_file_path,result_name);
+    //ouverture du fichier
+    file = fopen(result_file_path,"w");
     outputData();
+    //fermeture du fichier
     fclose(file);
 
     // fin de la course
