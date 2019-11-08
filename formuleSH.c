@@ -41,7 +41,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
-#define SLEEPDIVISER 20
+#define SLEEPDIVISER 80
 #define PATH_SIZE 1024
 
 /***********************************************************************************************************************
@@ -61,7 +61,10 @@ typedef struct {
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
 f1 carList[CAR];
 FILE * file;
-char path[PATH_SIZE/2];
+FILE * logFile;
+int shmid;
+char path[(PATH_SIZE/2)];
+char race_name[50];
 
 void circuit_son(int shmid,int carPosition);
 void circuit_father(int shmid);
@@ -109,6 +112,7 @@ void init_mem(shmid){
         mem[i] = init_car(carListNumber[i]);
     }
 }
+
 
 /***********************************************************************************************************************
  *                               fonctions supp
@@ -322,15 +326,82 @@ void showWelcome(){
  * @return true si nouvelle partie false si non
  */
 bool continueTheRace(){
-    printf("Do you plan to run a new race or do you continue one ?\n");
-    printf("enter : Y to continue \n");
-    printf("enter : N to start a new one \n");
+    printf(CYN"Do you plan to run a new race ?\n"RESET);
+    printf("enter :"GRN" Y to continue \n"RESET);
+    printf("enter : "RED" N to start a new one \n"RESET);
     char new_race;
     scanf("%c",&new_race);
     if (new_race == 'Y'){
         return true;
     }
     return false;
+}
+
+/***********************************************************************************************************************
+ *                               fonctions Gestion des fichiers
+ **********************************************************************************************************************/
+void outputData(){
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    fprintf(file,"                                            Tableau des Résultats                                              \n");
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    for(int car = 0; car < CAR; car++){
+        fprintf(file,"Voiture %2d || Nombre arrêts aux stands : %1d || Out : %c || Temps Total : %4d \n",
+                carList[car].number,
+                carList[car].stands,
+                status(carList[car].in_stands,carList[car].out),
+                carList[car].totalTime);
+    }
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    fprintf(file,"                                            Tableau des Secteurs                                               \n");
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    for (int sec = 0; sec < SECTION; sec++) {
+        for (int car = 0; car < CAR; car++) {
+            int best_time = carList[car].circuit[0][sec];
+            for (int turn = 1; turn < TURN; turn++) {
+                if (best_time > carList[car].circuit[turn][sec]){
+                    best_time = carList[car].circuit[turn][sec];
+                }
+            }
+            fprintf(file,"Section %3d || Voiture %2d || Best time : %2d \n",sec+1,carList[car].number,best_time);
+        }
+        fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    }
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    fprintf(file,"                                       Tableau des Récapitulatif                                               \n");
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    for (int turn = 0; turn < TURN; turn++){
+        for(int car = 0; car < CAR; car++){
+            fprintf(file,"Voiture %3d || turn : %1d || S1 : %2d | S2 : %2d | S3 : %2d  || Status : %c | Stands stop : %2d ||Total Turn : %3d \n",
+                    carList[car].number,
+                    turn+1,
+                    carList[car].circuit[turn][0],
+                    carList[car].circuit[turn][1],
+                    carList[car].circuit[turn][2],
+                    status(carList[car].in_stands,carList[car].out),
+                    carList[car].stands,
+                    carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
+        }
+        fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    }
+}
+
+/**
+ * écriture dans le fichier sur base du nom des résultats globaux
+ * @param result_name
+ */
+void outputFile(char* result_name){
+    char result_file_path[PATH_SIZE];
+    getPath();
+    printf(RED"current path : %s \n"RESET,path);
+    strcpy(result_file_path,path);
+    strcat(result_file_path,result_name);
+    //ouverture du fichier
+    printf("dossier actuelle du programme : %s \n",path);
+    printf("ecriture des résultats à : "GRN"%s \n"RESET,result_file_path);
+    file = fopen(result_file_path,"w");
+    outputData();
+    //fermeture du fichier
+    fclose(file);
 }
 
 /***********************************************************************************************************************
@@ -399,51 +470,115 @@ void circuit_father(int shmid){
 }
 
 /***********************************************************************************************************************
- *                               fonctions Gestion des fichiers
+ *                               fonctions gestion des logs
  **********************************************************************************************************************/
-void outputData(){
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    fprintf(file,"                                            Tableau des Résultats                                              \n");
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    for(int car = 0; car < CAR; car++){
-        fprintf(file,"Voiture %2d || Nombre arrêts aux stands : %1d || Out : %c || Temps Total : %4d \n",
-                carList[car].number,
-                carList[car].stands,
-                status(carList[car].in_stands,carList[car].out),
-                carList[car].totalTime);
+
+/**
+ * generation du fichier de log de la course ou écriture si existant
+ */
+void genLog(){
+    char log_path[PATH_SIZE];
+    strcpy(log_path,path);
+    strcat(log_path,"-log.txt");
+
+    logFile = fopen(log_path, "at");
+    if (!logFile) logFile = fopen("logfile.txt", "wt");
+    if (!logFile) {
+        printf("can not open logfile.txt for writing.\n");
+        return;   // error de log, sortie
     }
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    fprintf(file,"                                            Tableau des Secteurs                                               \n");
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    for (int sec = 0; sec < SECTION; sec++) {
-        for (int car = 0; car < CAR; car++) {
-            int best_time = carList[car].circuit[0][sec];
-            for (int turn = 1; turn < TURN; turn++) {
-                if (best_time > carList[car].circuit[turn][sec]){
-                    best_time = carList[car].circuit[turn][sec];
-                }
-            }
-            fprintf(file,"Section %3d || Voiture %2d || Best time : %2d \n",sec+1,carList[car].number,best_time);
-        }
-        fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+
+    // data to put in the log file
+    fprintf(logFile,"-- Other Race --\n");
+    fprintf(logFile,"%s \n",race_name);
+    for(int car = 0; car < CAR; car ++){
+        fprintf(logFile,"%d-",carList[car].number);
     }
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    fprintf(file,"                                       Tableau des Récapitulatif                                               \n");
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    for (int turn = 0; turn < TURN; turn++){
-        for(int car = 0; car < CAR; car++){
-            fprintf(file,"Voiture %3d || turn : %1d || S1 : %2d | S2 : %2d | S3 : %2d  || Status : %c | Stands stop : %2d ||Total Turn : %3d \n",
-                    carList[car].number,
-                    turn+1,
-                    carList[car].circuit[turn][0],
-                    carList[car].circuit[turn][1],
-                    carList[car].circuit[turn][2],
-                    status(carList[car].in_stands,carList[car].out),
-                    carList[car].stands,
-                    carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
-        }
-        fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    fprintf(logFile,"\n");
+    for(int car = 0; car < CAR; car ++){
+        fprintf(logFile,"%d-",carList[car].totalTime);
     }
+
+    fclose(logFile);
+}
+
+/**
+ * lecture depuis le fichier de log
+ */
+void recupLog(){
+    char log_path[PATH_SIZE];
+    strcpy(log_path,path);
+    strcat(log_path,"-log.txt");
+
+    logFile = fopen(log_path, "at");
+    if (!logFile) {
+        printf("can not open logfile.txt for writing or doens't exist.\n");
+        return;   // error de log, sortie
+    }
+
+    // récupération des données de course
+
+
+    fclose(logFile);
+}
+
+/**
+ * chargement de la course depuis le fichier log ou création de la course si nouvelle
+ */
+void raceLoading(){
+    printf(RED"current path : %s \n"RESET,path);
+    if(continueTheRace()){
+        printf(GRN"what's the name of your race ? \n"RESET);
+        // récupération des données de la course depuis le fichier de sauvgarde
+        printf("name of the race : ");
+        scanf("%s",race_name);
+        printf("\n");
+    }
+    else{
+        clrscr();
+        showWelcome();
+        printf(GRN"let's start a new one then\n"RESET);
+        // demande des paramètres de course
+        printf("what is the name of your race ? \n"RED"max 50 characters\n"RESET);
+        printf("name of the race : ");
+        scanf("%s",race_name);
+        printf("\n");
+    }
+}
+
+/***********************************************************************************************************************
+ *                               fonctions de type de course
+ **********************************************************************************************************************/
+
+/**
+ * Gestion des essais d'un course
+ */
+void lunchEssais(){
+    gen_circuit(shmid); // génération de la course
+    bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
+    clrscr(); // clear de la console
+    showRun(); // affichage des stats globales des voitures
+    showBestSect(); // affichages des meilleurs sections par voiture
+    showRunTotal(1); // affichage récapitulatif avec bannière
+
+    // génération du fichier de résultats
+    char* result_name = "-EssaisRésultats.txt";
+    outputFile(result_name);
+    genLog();
+}
+
+/**
+ * Gestion des qualif d'une course
+ */
+void lunchQualif(){
+    // gestion des qualif
+}
+
+/**
+ * Gestion de la crouse en elle même
+ */
+void lunchRun(){
+    // gestion de la course
 }
 
 /***********************************************************************************************************************
@@ -456,21 +591,15 @@ void outputData(){
  */
 int main(int argc, char *argv[]) {
     // récupération des données de la course depuis un fichier
+    clrscr();
     showWelcome();
-    if(continueTheRace()){
-        printf("what's the name of your race ? \n");
-        // récupération des données de la course depuis le fichier de sauvgarde
-    }
-    else{
-        printf("let's start a new one then\n");
-        // demande des paramètres de course
-    }
+    getPath();
+    raceLoading();
 
     // initalisation des voitures
     init_car_list(carListNumber);
-
     // allocation de la mem partagée
-    int shmid = shmget(KEY, (20 * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
+    shmid = shmget(KEY, (20 * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1) {
         perror("ERROR in creation of the Shared Memory");
         printf("\n");
@@ -480,25 +609,7 @@ int main(int argc, char *argv[]) {
     init_mem(shmid);
 
     // gestion du circuit
-    gen_circuit(shmid); // génération de la course
-    bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
-    clrscr(); // clear de la console
-    showRun(); // affichage des stats globales des voitures
-    showBestSect(); // affichages des meilleurs sections par voiture
-    showRunTotal(1); // affichage récapitulatif avec bannière
-
-    // génération du fichier de résultats
-    // récupération de l'emplacement d'exécution
-    getPath();
-    char* result_name = "-Résultats.txt";
-    char result_file_path[PATH_SIZE];
-    strcpy(result_file_path,path);
-    strcat(result_file_path,result_name);
-    //ouverture du fichier
-    file = fopen(result_file_path,"w");
-    outputData();
-    //fermeture du fichier
-    fclose(file);
+    lunchEssais();
 
     // fin de la course
     printf("fin des tours \n");
