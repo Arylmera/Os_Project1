@@ -69,7 +69,7 @@ int shmid;
 char path[(PATH_SIZE/2)+50];
 char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
-int buffer[CAR];
+int buffer_array[CAR];
 
 void circuit_son(int shmid,int carPosition);
 void circuit_father(int shmid);
@@ -496,9 +496,9 @@ int* genArrayByString(char* line){
             j++;
         }
         j++;
-        buffer[i] = (int) tmp;
+        buffer_array[i] = (int) tmp;
     }
-    return buffer;
+    return buffer_array;
 }
 
 /***********************************************************************************************************************
@@ -603,7 +603,6 @@ void genLog(){
     for(int car = 0; car < CAR; car ++){
         fprintf(logFile,"%c!",status(carList[car].in_stands,carList[car].out));
     }
-    fprintf(logFile,"#");
     fprintf(logFile,"\n");
     // fermeture du log
     fclose(logFile);
@@ -624,53 +623,50 @@ void recupLog(){
     }
     // lecture du fichier log
     char buffer[MAXCHAR];
-    char name_buffer[50];
     bool found = false;
+
+    const char * part_separator = "$";
+    const char * data_separator = "!";
+
     while((fgets(buffer,MAXCHAR,logFile) != NULL) && !found){
-        memset(name_buffer,0,sizeof(name_buffer));
-        int j = 0;
-        for (; buffer[j] != '$'; j++) {
-            name_buffer[j] += buffer[j];
-        }
         // vérification du nom
-        if (strcmp(name_buffer, race_name) == 0) {
-            found = true;
-            int i = j+1;
-            char buffer_carList[MAXCHAR];
-            // récupération des numéro
-            for(; buffer[i] != '$'; i++) {
-                buffer_carList[i] = buffer[i];
-                printf("numéro de voiture %d récupérée \n",buffer_carList[i]);
-            }
-            i = i+2;
-            memcpy(carList,genArrayByString(buffer_carList),sizeof(carList));
-            init_car_list(carListNumber);
-            // récupération des temps
-            memset(buffer_carList,0,sizeof(buffer));
-            for(; buffer[i] != '$'; i++) {
-                buffer_carList[i] = buffer[i];
-            }
-            i = i+2;
-            int carTime[CAR];
-            memcpy(carTime,genArrayByString(buffer_carList),sizeof(carTime));
-            for(int car = 0; car < CAR; car++){
-                carList[car].totalTime = carTime[car];
-                printf("car %d: total time %d (récupération de %d)\n",carList[car].number,carList[car].totalTime,carTime[car]);
-            }
-            // récupération des status
-            memset(buffer_carList,0,sizeof(buffer));
-            for(; buffer[i] != '#'; i++) {
-                buffer_carList[i] = buffer[i];
-            }
-            int status_number = 0;
-            for(int car = 0; car < CAR; car++) {
-                if(buffer[status_number] == 'O'){
-                    carList[car].out = true;
-                    if (carList[i].out){
-                        printf("car %d is out\n",carList[car].number);
+        int i = 0;
+        char * buffer_part = strtok(buffer, part_separator); // récupération de la 1er partie etant le nom non utile
+        if (strcmp(buffer_part, race_name) == 0) { // si c est la bonne course
+            buffer_part = strtok(NULL, part_separator);
+            while( buffer_part != NULL ) { // temps que il y a des parties
+                printf("%s", buffer_part);
+                // sous découpe
+                char * buffer_data = strtok(buffer_part, data_separator);
+                int car = 0;
+                printf("4\n");
+                while (buffer_data != NULL) { // temps qu"il y a des données
+                    printf("%s \n", buffer_data);
+                    if (i == 0) { // numéro de voiture
+                        long tmp;
+                        tmp = strtol(buffer_data, NULL, 10);
+                        carListNumber[car] = (int) tmp;
+                        printf("car number %d \n", carListNumber[car]);
+                        car++;
+                    } else if (i == 1) { // temps voitures
+                        long tmp;
+                        tmp = strtol(buffer_data, NULL, 10);
+                        carList[car].totalTime = (int) tmp;
+                        printf("car total time %d = %d \n", carList[car].number, carList[car].totalTime);
+                        car++;
+                    } else if (i == 2) { // status voiture
+                        if (buffer_data == "O") {
+                            carList[car].out = true;
+                            printf("car %d, is out \n", carList[car].number);
+                        }
+                        car++;
                     }
+                    buffer_data = strtok(NULL, data_separator);
                 }
-                status_number = status_number+2;
+                if (i == 0) {
+                    init_car_list(carListNumber);
+                }
+                i++;
             }
         }
     }
@@ -678,7 +674,7 @@ void recupLog(){
         printf("No run under this name found\n");
     }
 
-    sleep(100);
+    sleep(10000);
 
     // fermeture du log
     fclose(logFile);
