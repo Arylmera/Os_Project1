@@ -19,6 +19,7 @@
 #include <unistd.h> //fork
 #include <string.h> //strcat
 #include <sys/wait.h> //wait
+#include <sys/stat.h> // mkdir
 #include <sys/types.h>
 #include <sys/shm.h>
 
@@ -63,7 +64,8 @@ f1 carList[CAR];
 FILE * file;
 FILE * logFile;
 int shmid;
-char path[(PATH_SIZE/2)];
+char path[(PATH_SIZE/2)+50];
+char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
 
 void circuit_son(int shmid,int carPosition);
@@ -214,11 +216,23 @@ void bubbleSortCarList(){
 void getPath(){
     uint32_t size = sizeof(path);
     if (_NSGetExecutablePath(path, &size) == 0) {
-        printf("Files will be saved to : %s\n", path);
+        //printf("Files will be saved to : %s\n", path);
     }
     else{
         printf("buffer too small; need size %u to define the path of save\n", size);
     }
+}
+
+/**
+ * mise a jour du path du dossier de course
+ * @param dir_name
+ */
+void getDir(char* dir_name){
+    getPath();
+    strcpy(dir_path,path);
+    strcat(dir_path,"-");
+    strcat(dir_path,dir_name);
+    strcat(dir_path,"/");
 }
 
 /***********************************************************************************************************************
@@ -392,11 +406,15 @@ void outputData(){
 void outputFile(char* result_name){
     char result_file_path[PATH_SIZE];
     getPath();
+    getDir(race_name);
     printf(RED"current path : %s \n"RESET,path);
-    strcpy(result_file_path,path);
+    printf(RED"current dir : %s \n"RESET,dir_path);
+    strcpy(result_file_path,dir_path);
+    strcat(result_file_path,race_name);
+    strcat(result_file_path,"-");
     strcat(result_file_path,result_name);
+    strcat(result_file_path,".txt");
     //ouverture du fichier
-    printf("dossier actuelle du programme : %s \n",path);
     printf("ecriture des résultats à : "GRN"%s \n"RESET,result_file_path);
     file = fopen(result_file_path,"w");
     outputData();
@@ -498,6 +516,7 @@ void genLog(){
     for(int car = 0; car < CAR; car ++){
         fprintf(logFile,"%d-",carList[car].totalTime);
     }
+    fprintf(logFile,"\n");
 
     fclose(logFile);
 }
@@ -529,20 +548,25 @@ void raceLoading(){
     printf(RED"current path : %s \n"RESET,path);
     if(continueTheRace()){
         printf(GRN"what's the name of your race ? \n"RESET);
-        // récupération des données de la course depuis le fichier de sauvgarde
+        // récup nom de la course
         printf("name of the race : ");
         scanf("%s",race_name);
         printf("\n");
+        // récupération des données de la course depuis le fichier de sauvgarde
+        getDir(race_name);
+
     }
     else{
         clrscr();
         showWelcome();
         printf(GRN"let's start a new one then\n"RESET);
         // demande des paramètres de course
-        printf("what is the name of your race ? \n"RED"max 50 characters\n"RESET);
+        printf("what is the name of your race ? \n"RED"max 50 characters and no space\n"RESET);
         printf("name of the race : ");
         scanf("%s",race_name);
         printf("\n");
+        getDir(race_name);
+        mkdir(dir_path,0777);
     }
 }
 
@@ -562,7 +586,7 @@ void lunchEssais(){
     showRunTotal(1); // affichage récapitulatif avec bannière
 
     // génération du fichier de résultats
-    char* result_name = "-EssaisRésultats.txt";
+    char* result_name = "Essais";
     outputFile(result_name);
     genLog();
 }
