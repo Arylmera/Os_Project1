@@ -22,6 +22,7 @@
 #include <sys/stat.h> // mkdir
 #include <sys/types.h>
 #include <sys/shm.h>
+#include <ctype.h>
 
 /***********************************************************************************************************************
  *                               définitions
@@ -344,8 +345,24 @@ bool continueTheRace(){
     printf("enter :"GRN" Y to continue \n"RESET);
     printf("enter : "RED" N to start a new one \n"RESET);
     char new_race;
-    scanf("%c",&new_race);
-    if (new_race == 'Y'){
+    scanf(" %c",&new_race);
+    if (new_race == 'Y' || new_race == 'y'){
+        return true;
+    }
+    return false;
+}
+
+/**
+ * affichage de la demande d'utilisation de la carListNumber par défault
+ * @return true si default carListNumber
+ */
+bool useDefaultCarList(){
+    printf("do you want to use a predifined list of 20 numbers of cars ? \n");
+    printf("enter :"GRN" Y to use the default  \n"RESET);
+    printf("enter :"RED" N to enter yourself the numbers of the 20 cars \n"RESET);
+    char predif_value;
+    scanf(" %c",&predif_value);
+    if (predif_value == 'Y' || predif_value == 'y') {
         return true;
     }
     return false;
@@ -420,6 +437,45 @@ void outputFile(char* result_name){
     outputData();
     //fermeture du fichier
     fclose(file);
+}
+
+/**
+ * demande le numéro de voitures a utiliser dans la carListNumber
+ */
+void getCarNumber(){
+    printf("enter the "CYN"number of the cars"RESET" that will participate in the race : "RED"(20 cars needed)\n"RESET);
+    bool used = false;
+    for (int i = 0; i < CAR; i++) {
+        int number;
+        do {
+            char number_buffer[10];
+            used = false;
+            bool is_integer = false;
+            do {
+                printf("Car %d : ", i + 1);
+                scanf("%s", &number_buffer[0]);
+                int length = strlen(number_buffer);
+                for(int i = 0; i < length; i++) {
+                    if(!isdigit(number_buffer[i])){
+                        printf("Please enter a number between 0 and 99\n");
+                        break;
+                    }
+                    else if (i == length - 1){
+                        is_integer = true;
+                        number = atoi(number_buffer);
+                    }
+                }
+            }while(!is_integer);
+            for (int j = i; j >= 0; j--) {
+                if (number == carListNumber[j]) {
+                    printf("\nThis car is already set, please enter an other number of car not already used \n");
+                    used = true;
+                    break;
+                }
+            }
+        }while(used);
+        carListNumber[i] = number;
+    }
 }
 
 /***********************************************************************************************************************
@@ -507,17 +563,26 @@ void genLog(){
     }
 
     // data to put in the log file
-    fprintf(logFile,"-- Other Race --\n");
+    fprintf(logFile,"@Other Race\n");
     fprintf(logFile,"%s \n",race_name);
+    // list of car number
     for(int car = 0; car < CAR; car ++){
         fprintf(logFile,"%d-",carList[car].number);
+
     }
-    fprintf(logFile,"\n");
+    fprintf(logFile,"$\n");
+    // total time of cars
     for(int car = 0; car < CAR; car ++){
         fprintf(logFile,"%d-",carList[car].totalTime);
     }
-    fprintf(logFile,"\n");
+    fprintf(logFile,"$\n");
+    // car status
+    for(int car = 0; car < CAR; car ++){
+        fprintf(logFile,"%c-",status(carList[car].in_stands,carList[car].out));
+    }
+    fprintf(logFile,"$\n");
 
+    // fermeture du log
     fclose(logFile);
 }
 
@@ -534,10 +599,9 @@ void recupLog(){
         printf("can not open logfile.txt for writing or doens't exist.\n");
         return;   // error de log, sortie
     }
-
     // récupération des données de course
 
-
+    // fermeture du log
     fclose(logFile);
 }
 
@@ -565,8 +629,14 @@ void raceLoading(){
         printf("name of the race : ");
         scanf("%s",race_name);
         printf("\n");
+        // création du directory de sauvgarde de la course
         getDir(race_name);
         mkdir(dir_path,0777);
+        // initalisation des voitures
+        if(!useDefaultCarList()){
+            getCarNumber();
+        }
+        init_car_list(carListNumber);
     }
 }
 
@@ -620,8 +690,6 @@ int main(int argc, char *argv[]) {
     getPath();
     raceLoading();
 
-    // initalisation des voitures
-    init_car_list(carListNumber);
     // allocation de la mem partagée
     shmid = shmget(KEY, (20 * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1) {
