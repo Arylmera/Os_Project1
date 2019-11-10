@@ -703,10 +703,6 @@ void recupLog(){
                     }
                     buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
                 }
-                printf("What is the name of this second race based on the parameter of the race %s \n",race_name);
-                scanf("%s",race_name);
-                printf("let's lunch the race %s then\n",race_name);
-                sleep(2);
             }
         }
         if (!found) {
