@@ -28,6 +28,8 @@
  *                               définitions
  **********************************************************************************************************************/
 
+#define _GNU_SOURCE
+
 #define RED   "\x1B[31m"
 #define GRN   "\x1B[32m"
 #define YEL   "\x1B[33m"
@@ -70,6 +72,9 @@ char path[(PATH_SIZE/2)+50];
 char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
 int buffer_array[CAR];
+
+const char * part_separator = "$";
+const char * data_separator = "!";
 
 void circuit_son(int shmid,int carPosition);
 void circuit_father(int shmid);
@@ -339,10 +344,35 @@ void showWelcome(){
 }
 
 /**
+ * printf les nom des courses déja trouvée dans le log
+ */
+void printExistingRun(){
+    char log_path[PATH_SIZE];
+    strcpy(log_path,path);
+    strcat(log_path,"-log.txt");
+    logFile = fopen(log_path, "rb");
+    if (!logFile) {
+        printf("can not open logfile.txt for writing or doens't exist.\n");
+        return;   // error de log, sortie
+    }
+
+    printf("\nCurrent Race Data found \n");
+    printf(YEL"----------------------------------------------------------------\n"RESET);
+    char buffer[MAXCHAR];
+    while(fgets(buffer, MAXCHAR, logFile) != NULL){
+        char *buffer_name = strtok(buffer,part_separator);
+        printf(CYN"\t%s \n"RESET,buffer_name);
+    }
+    printf(YEL"----------------------------------------------------------------\n"RESET);
+    fclose(logFile);
+}
+
+/**
  * affichage des questions et intéractions pour la demande de nouvelle course de début de partie
  * @return true si nouvelle partie false si non
  */
 bool continueTheRace(){
+    printExistingRun();
     printf(CYN"Do you plan to run a new race ?\n"RESET);
     printf("enter :"GRN" Y to continue \n"RESET);
     printf("enter : "RED" N to start a new one \n"RESET);
@@ -624,57 +654,68 @@ void recupLog(){
     // lecture du fichier log
     char buffer[MAXCHAR];
     bool found = false;
+    
+    char * part_save_ptr;
+    char * data_save_ptr;
 
-    const char * part_separator = "$";
-    const char * data_separator = "!";
-
-    while((fgets(buffer,MAXCHAR,logFile) != NULL) && !found){
-        // vérification du nom
-        int i = 0;
-        char * buffer_part = strtok(buffer, part_separator); // récupération de la 1er partie etant le nom non utile
-        if (strcmp(buffer_part, race_name) == 0) { // si c est la bonne course
-            buffer_part = strtok(NULL, part_separator);
-            while( buffer_part != NULL ) { // temps que il y a des parties
-                printf("%s", buffer_part);
-                // sous découpe
-                char * buffer_data = strtok(buffer_part, data_separator);
-                int car = 0;
-                printf("4\n");
-                while (buffer_data != NULL) { // temps qu"il y a des données
-                    printf("%s \n", buffer_data);
-                    if (i == 0) { // numéro de voiture
-                        long tmp;
-                        tmp = strtol(buffer_data, NULL, 10);
-                        carListNumber[car] = (int) tmp;
-                        printf("car number %d \n", carListNumber[car]);
-                        car++;
-                    } else if (i == 1) { // temps voitures
-                        long tmp;
-                        tmp = strtol(buffer_data, NULL, 10);
-                        carList[car].totalTime = (int) tmp;
-                        printf("car total time %d = %d \n", carList[car].number, carList[car].totalTime);
-                        car++;
-                    } else if (i == 2) { // status voiture
-                        if (buffer_data == "O") {
-                            carList[car].out = true;
-                            printf("car %d, is out \n", carList[car].number);
-                        }
-                        car++;
+    do {
+        while ((fgets(buffer, MAXCHAR, logFile) != NULL) && !found) {
+            // récupération de la 1er partie etant le nom
+            char *buffer_part = strtok_r(buffer, part_separator, &part_save_ptr);
+            if (strcmp(buffer_part, race_name) == 0) { // si c est la bonne course
+                found = true;
+                // récupération de la partie numéro de voiture
+                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+                char *buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                printf("récupération des numéro de voiture \n");
+                for(int car = 0; car < CAR; car++){
+                    long tmp;
+                    tmp = strtol(buffer_data, NULL, 10);
+                    carListNumber[car] = (int) tmp;
+                    printf("car number %d \n", carListNumber[car]);
+                    buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
+                }
+                printf("récupération effectuée \n");
+                printf("initialisation de la liste des voiture sur base des numéro chargé \n");
+                init_car_list(carListNumber);
+                printf("initalisation effectuée\n");
+                // récupération de la partie des temps totaux
+                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                printf("récupération du temps total de partie\n");
+                for(int car = 0; car < CAR; car++){
+                    long tmp;
+                    tmp = strtol(buffer_data, NULL, 10);
+                    carList[car].totalTime = (int) tmp;
+                    printf("car total time %d = %d \n", carList[car].number, carList[car].totalTime);
+                    buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
+                }
+                printf("temps totaux loaded\n");
+                // récupération des status de voiture
+                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                printf("récupération du status des voitures\n");
+                for(int car = 0; car < CAR; car++){
+                    char value = buffer_data[0];
+                    if (value == 'O') {
+                        carList[car].out = true;
+                        printf("car %d, is out \n", carList[car].number);
                     }
-                    buffer_data = strtok(NULL, data_separator);
+                    buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
                 }
-                if (i == 0) {
-                    init_car_list(carListNumber);
-                }
-                i++;
+                printf("What is the name of this second race based on the parameter of the race %s \n",race_name);
+                scanf("%s",race_name);
+                printf("let's lunch the race %s then\n",race_name);
+                sleep(2);
             }
         }
-    }
-    if(!found){
-        printf("No run under this name found\n");
-    }
-
-    sleep(10000);
+        if (!found) {
+            printf("No run under this name found\n");
+            printf("please enter the name of the run you whant to load : ");
+            scanf("%s",race_name);
+            printf("\n");
+        }
+    }while(!found);
 
     // fermeture du log
     fclose(logFile);
