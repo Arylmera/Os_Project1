@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <ctype.h>
+#include <semaphore.h>
 
 /***********************************************************************************************************************
  *                               définitions
@@ -45,7 +46,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
-#define SLEEPDIVISER 10
+#define SLEEPDIVISER 15
 #define PATH_SIZE 1024
 #define MAXCHAR 1024
 
@@ -61,7 +62,7 @@ typedef struct {
     int totalTime;
 
     int circuit[TURN][SECTION];
-    int best_section[SECTION];
+    int currrent_section[SECTION];
 } f1;
 
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
@@ -73,6 +74,9 @@ char path[(PATH_SIZE/2)+50];
 char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
 int buffer_array[CAR];
+int best_sect_time[SECTION];
+
+sem_t semaphore; // déclatration du sémaphore
 
 const char * part_separator = "$";
 const char * data_separator = "!";
@@ -96,7 +100,7 @@ f1 init_car(int carNumber){
     tmp.out = false;
     tmp.totalTime = 0;
     memset(tmp.circuit, 0, sizeof(tmp.circuit));
-    memset(tmp.best_section, 0, sizeof(tmp.best_section));
+    memset(tmp.currrent_section, 0, sizeof(tmp.currrent_section));
     return tmp;
 }
 
@@ -112,7 +116,7 @@ void init_car_list(int *carListNumber){
         carList[i].out = false;
         carList[i].totalTime = 0;
         memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
-        memset(carList[i].best_section, 0, sizeof(carList[i].best_section));
+        memset(carList[i].currrent_section, 0, sizeof(carList[i].currrent_section));
     }
 }
 
@@ -120,12 +124,12 @@ void init_car_list(int *carListNumber){
  * initalisation de la shared memory
  */
 void init_mem(shmid){
+    memset(best_sect_time,0,sizeof(best_sect_time));
     f1 *mem = (f1 *) shmat(shmid, 0, 0);
     for(int i = 0; i < CAR; i++){
         mem[i] = init_car(carListNumber[i]);
     }
 }
-
 
 /***********************************************************************************************************************
  *                               fonctions supp
@@ -225,7 +229,7 @@ void bubbleSortCarList(){
  * @return char[1024]
  */
 void getPath(){
-    uint32_t size = sizeof(path);
+    u_int32_t size = sizeof(path);
     if (_NSGetExecutablePath(path, &size) == 0) {
         //printf("Files will be saved to : %s\n", path);
     }
@@ -319,7 +323,7 @@ void showRun(){
 /**
  * affichage des meilleurs temps par secteurs par voitures
  */
-void showBestSect(){
+void showCurrentSect(){
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
     printf(RED "                                                 Tableau des Secteurs                                                 \n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
@@ -327,9 +331,9 @@ void showBestSect(){
         printf(CYN "---------------------------------------------------------------------------------------------------------------\n" RESET);
         printf(BLU"Voiture"RESET" %3d "CYN"||"GRN" S1 "RESET": %3d "CYN"|"GRN" S2 "RESET": %3d "CYN"|"GRN" S3 "RESET": %3d "CYN"|--|"RED" Status "RESET": %2c "CYN"|--|"BLU" Total "RESET": %4d\n",
                 carList[car].number,
-                carList[car].best_section[0],
-                carList[car].best_section[1],
-                carList[car].best_section[2],
+                carList[car].currrent_section[0],
+                carList[car].currrent_section[1],
+                carList[car].currrent_section[2],
                 status(carList[car].in_stands,carList[car].out),
                 carList[car].totalTime);
     }
@@ -424,9 +428,9 @@ void outputData(){
         fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
         fprintf(file,"Voiture %3d || S1 : %3d | S2 : %3d | S3 : %3d |--| Total : %4d\n",
                carList[car].number,
-               carList[car].best_section[0],
-               carList[car].best_section[1],
-               carList[car].best_section[2],
+               carList[car].currrent_section[0],
+               carList[car].currrent_section[1],
+               carList[car].currrent_section[2],
                carList[car].totalTime);
     }
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
@@ -537,12 +541,14 @@ int* genArrayByString(char* line){
  * @return
  */
 int choiceTypeOfRun(){
+    char type_string[5];
     int type =0;
     printf("Quelle partie de la course voulez-vous lancer ?\n");
     printf("\t 1 : Les essais\n");
     printf("\t 2 : Les Qualifs\n");
-    printf("\t 2 : La  Course\n");
-    scanf("%d",type);
+    printf("\t 3 : La  Course\n");
+    scanf("%s",type_string);
+    type = (int) atoi(type_string);
     return type;
 }
 
@@ -567,15 +573,14 @@ void circuit_son(int shmid,int carPosition){
     }
     for(int i = 0; i < TURN ; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
+            sem_wait(&semaphore);
             if (currentCar->out){
                 currentCar->circuit[i][j] = 0;
             }
             else {
                 int section_time = genSection();
                 currentCar->circuit[i][j] = section_time;
-                if ((currentCar->best_section[j] == 0) || (currentCar->best_section[j] > section_time)) {
-                    currentCar->best_section[j] = section_time;
-                }
+                currentCar->currrent_section[j] = section_time;
                 currentCar->totalTime += section_time;
                 if (genRandom() < OUTPOURCENT) {
                     currentCar->out = true;
@@ -591,6 +596,7 @@ void circuit_son(int shmid,int carPosition){
                     currentCar->stands++;
                     currentCar->in_stands = false;
                 }
+                sem_post(&semaphore);
             }
         }
     }
@@ -607,11 +613,13 @@ void circuit_father(int shmid){
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
+        sem_wait(&semaphore);
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
         clrscr();
         //showRunTotal(0);
-        showBestSect();
+        showCurrentSect();
+        sem_post(&semaphore);
     }while ((wpid = wait(&status)) > 0);
 }
 
@@ -784,7 +792,7 @@ void lunchEssais(){
     bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
     clrscr(); // clear de la console
     showRun(); // affichage des stats globales des voitures
-    showBestSect(); // affichages des meilleurs sections par voiture
+    showCurrentSect(); // affichages des meilleurs sections par voiture
     showRunTotal(1); // affichage récapitulatif avec bannière
 
     // génération du fichier de résultats
@@ -831,11 +839,12 @@ int main(int argc, char *argv[]) {
     showWelcome();
     getPath();
     raceLoading();
-
+    //mise en place du sémaphore
+    sem_init(&semaphore, 0, 1);
     // allocation de la mem partagée
     shmid = shmget(KEY, (CAR * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1) {
-        perror("ERROR in creation of the Shared Memory");
+        perror(RED"ERROR in creation of the Shared Memory"RESET);
         printf("\n");
         shmctl(shmid, IPC_RMID, NULL); // suppression de la memoire partagée
         return 1;
@@ -843,8 +852,6 @@ int main(int argc, char *argv[]) {
     init_mem(shmid);
 
     // gestion du circuit
-
-    /*
     int choice_type = choiceTypeOfRun();
     if (choice_type == 1) {
         lunchEssais();
@@ -855,9 +862,10 @@ int main(int argc, char *argv[]) {
     else if (choice_type == 3){
         lunchRun();
     }
-     */
-    lunchEssais();
+    //lunchEssais();
 
+    // suppression du semaphore
+    sem_destroy(&semaphore);
     // fin de la course
     printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
