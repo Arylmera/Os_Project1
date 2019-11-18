@@ -46,7 +46,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
-#define SLEEPDIVISER 15
+#define SLEEPDIVISER 20
 #define PATH_SIZE 1024
 #define MAXCHAR 1024
 
@@ -82,7 +82,7 @@ const char * part_separator = "$";
 const char * data_separator = "!";
 
 void circuit_son(int shmid,int carPosition);
-void circuit_father(int shmid);
+void circuit_father(int shmid,char* entry);
 
 /***********************************************************************************************************************
  *                               fonctions initalisation
@@ -131,6 +131,20 @@ void init_mem(shmid){
     }
 }
 
+/**
+ * remise a zero des valeurs propre a la course pour chaque voiture
+ */
+void resetTimeCar(){
+    for(int i = 0; i < CAR; i++){
+        carList[i].stands = 0;
+        carList[i].in_stands = false;
+        carList[i].totalTime = 0;
+        memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
+        memset(carList[i].currrent_section, 0, sizeof(carList[i].currrent_section));
+    }
+    memset(best_sect_time,0,sizeof(best_sect_time));
+}
+
 /***********************************************************************************************************************
  *                               fonctions supp
  **********************************************************************************************************************/
@@ -167,9 +181,10 @@ int genRandom(){
 /**
  * gestion des tours d essais des voitures
  * @param shmid id de la memoire partagée
+ *        entry est le type de la course
  * @return -1 if error else 0
  */
-int gen_circuit(int shmid){
+int gen_circuit(int shmid,char* entry){
     for (int car = 0; car < CAR; car++) {
         int pid = fork();
         if (pid < 0) {
@@ -183,7 +198,7 @@ int gen_circuit(int shmid){
         }
     }
     /* Parent */
-    circuit_father(shmid);
+    circuit_father(shmid,entry);
     return 0;
 }
 
@@ -311,7 +326,7 @@ void showRun(){
     printf(RED "                                            Tableau des Résultats                                              \n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
     for(int car = 0; car < CAR; car++){
-        printf(BLU"Voiture "RESET" %2d "RED"||"CYN" Nombre arrets aux stands : "RESET" %1d "RED"||"CYN"Out :"RESET" %c || "BLU" Temps Total : "RESET" %4d \n",
+        printf(BLU"Voiture "RESET" %2d "RED"||"CYN" Nombre arrets aux stands : "RESET" %2d "RED"||"CYN"Out :"RESET" %c || "BLU" Temps Total : "RESET" %4d \n",
                carList[car].number,
                carList[car].stands,
                status(carList[car].in_stands,carList[car].out),
@@ -322,8 +337,12 @@ void showRun(){
 
 /**
  * affichage des meilleurs temps par secteurs par voitures
+ * @param entry type de la course
  */
-void showCurrentSect(){
+void showCurrentSect(char* entry){
+    printf(CYN "---------------------------------------------------------------------------------------------------------------\n" RESET);
+    printf(CYN "                                                 %s                                                \n" RESET,entry);
+    printf(CYN "---------------------------------------------------------------------------------------------------------------\n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
     printf(RED "                                                 Tableau des Secteurs                                                 \n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
@@ -339,6 +358,19 @@ void showCurrentSect(){
     }
     printf(CYN "---------------------------------------------------------------------------------------------------------------\n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
+}
+
+/**
+ * affichage des meilleurs secteurs entre les voitures
+ */
+void showBestSect(){
+    printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
+    printf(RED "                                           Best Time For Secteurs                                               \n" RESET);
+    printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
+    printf(RED"Best Secteurs Globaux "CYN"|-|"GRN" S1 "RESET": %3d "CYN"||"GRN" S2 "RESET": %3d "CYN"||"GRN" S3 "RESET": %3d "CYN"|-|\n"RESET,
+           best_sect_time[0],
+           best_sect_time[1],
+           best_sect_time[2]);
 }
 
 /**
@@ -415,7 +447,7 @@ void outputData(){
     fprintf(file,"                                            Tableau des Résultats                                              \n");
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     for(int car = 0; car < CAR; car++){
-        fprintf(file,"Voiture %2d || Nombre arrêts aux stands : %1d || Out : %c || Temps Total : %4d \n",
+        fprintf(file,"Voiture %2d || Nombre arrêts aux stands : %2d || Out : %c || Temps Total : %4d \n",
                 carList[car].number,
                 carList[car].stands,
                 status(carList[car].in_stands,carList[car].out),
@@ -433,6 +465,13 @@ void outputData(){
                carList[car].currrent_section[2],
                carList[car].totalTime);
     }
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    fprintf(file,"                                          Best Time For Secteurs                                               \n");
+    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
+    fprintf(file,"Best Secteurs Globaux |-| S1 : %3d || S2 : %3d || S3 : %3d |-|\n",
+            best_sect_time[0],
+            best_sect_time[1],
+            best_sect_time[2]);
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"                                       Tableau des Récapitulatif                                               \n");
@@ -455,7 +494,7 @@ void outputData(){
 
 /**
  * écriture dans le fichier sur base du nom des résultats globaux
- * @param result_name
+ * @param result_name nom du fichier de résulat sur base du nom de la course
  */
 void outputFile(char* result_name){
     char result_file_path[PATH_SIZE];
@@ -552,6 +591,16 @@ int choiceTypeOfRun(){
     return type;
 }
 
+/**
+ * met les voitures out sur base du nombre de voitures données a partir de la fin
+ * @param num nombre de voiture a mettre out
+ */
+void setOut(int num){
+    for(int car = CAR; car > (CAR-(num+1)); car-- ){
+        carList[car].out = true;
+    }
+}
+
 /***********************************************************************************************************************
  *                               fonctions voitures
  **********************************************************************************************************************/
@@ -581,18 +630,21 @@ void circuit_son(int shmid,int carPosition){
                 int section_time = genSection();
                 currentCar->circuit[i][j] = section_time;
                 currentCar->currrent_section[j] = section_time;
+                // vérification des temps des meilleurs secteurs
+                if(best_sect_time[j] > section_time || best_sect_time[j] == 0){
+                    best_sect_time[j] = section_time;
+                }
                 currentCar->totalTime += section_time;
+                // test random out de la voiture
                 if (genRandom() < OUTPOURCENT) {
                     currentCar->out = true;
-                    //printf("voiture %d a eu un problmème et est OUT", currentCar->number);
                 }
-
-                if (genRandom() < STANDPOURCENT || (i == (TURN - 1) && currentCar->stands == 0)) { // 50% de s'arreter ou si jamais arrêter pendant la course
+                // test pour stand
+                if ((genRandom() < STANDPOURCENT || (i == (TURN - 1) && currentCar->stands == 0)) && j == SECTION) { // 50% de s'arreter ou si jamais arrêter pendant la course
                     currentCar->in_stands = true;
                     int time_in_stands = genRandomStand();
                     currentCar->circuit[i][SECTION - 1] += time_in_stands;
                     currentCar->totalTime += time_in_stands;
-                    //printf("arret de la voiture %d au stand , temps total de la section 3 : %d \n", currentCar->number,currentCar->circuit[i][SECTION - 1]);
                     currentCar->stands++;
                     currentCar->in_stands = false;
                 }
@@ -605,9 +657,10 @@ void circuit_son(int shmid,int carPosition){
 
 /**
  * fonction du père
- * @return
+ * @param shmid id de la memoire partagée
+ * @param entry type de la course
  */
-void circuit_father(int shmid){
+void circuit_father(int shmid,char* entry){
     int status = 0;
     pid_t wpid;
     // récupération des données de la SM
@@ -617,8 +670,8 @@ void circuit_father(int shmid){
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
         clrscr();
-        //showRunTotal(0);
-        showCurrentSect();
+        showCurrentSect(entry);
+        showBestSect();
         sem_post(&semaphore);
     }while ((wpid = wait(&status)) > 0);
 }
@@ -788,11 +841,12 @@ void raceLoading(){
  * Gestion des essais d'un course
  */
 void lunchEssais(){
-    gen_circuit(shmid); // génération de la course
+    gen_circuit(shmid,"Essais"); // génération de la course
     bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
     clrscr(); // clear de la console
     showRun(); // affichage des stats globales des voitures
-    showCurrentSect(); // affichages des meilleurs sections par voiture
+    showCurrentSect("Essais"); // affichages des meilleurs sections par voiture
+    showBestSect(); // affichage des meilleurs temps par secteurs
     showRunTotal(1); // affichage récapitulatif avec bannière
 
     // génération du fichier de résultats
@@ -806,6 +860,26 @@ void lunchEssais(){
  */
 void lunchQualif(){
     // gestion des qualif
+    // Q1
+    gen_circuit(shmid,"Qualif -- Q1");
+    bubbleSortCarList();
+    setOut(5); // 5 dernières OUT
+    resetTimeCar();
+    // Q2
+    gen_circuit(shmid,"Qualif -- Q2");
+    bubbleSortCarList();
+    setOut(10); // 10 dernières OUT
+    resetTimeCar();
+    // Q3
+    gen_circuit(shmid,"Qualif -- Q3");
+    bubbleSortCarList();
+    // affichage final
+    bubbleSortCarList();
+    clrscr(); // clear de la console
+    showRun(); // affichage des stats globales des voitures
+    showCurrentSect("Qualif -- Q3"); // affichages des meilleurs sections par voiture
+    showBestSect(); // affichage des meilleurs temps par secteurs
+    showRunTotal(1); // affichage récapitulatif avec bannière
 
     // génération du fichier de résultats
     char* result_name = "Qualif";
@@ -818,6 +892,14 @@ void lunchQualif(){
  */
 void lunchRun(){
     // gestion de la course
+    gen_circuit(shmid,"Course"); // génération de la course
+    bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
+    clrscr(); // clear de la console
+    showRun(); // affichage des stats globales des voitures
+    showCurrentSect("Course"); // affichages des meilleurs sections par voiture
+    showBestSect(); // affichage des meilleurs temps par secteurs
+    showRunTotal(1); // affichage récapitulatif avec bannière
+
 
     // génération du fichier de résultats
     char* result_name = "Course";
