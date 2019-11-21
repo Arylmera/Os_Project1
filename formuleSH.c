@@ -81,6 +81,10 @@ sem_t semaphore; // déclatration du sémaphore
 const char * part_separator = "$";
 const char * data_separator = "!";
 
+int essais = 0;
+int qualif = 0;
+int course = 0;
+
 void circuit_son(int shmid,int carPosition);
 void circuit_father(int shmid,char* entry);
 
@@ -383,6 +387,58 @@ void showWelcome(){
 }
 
 /**
+ * helper pour les status des courses
+ * @param type type de la course Essais/qualif/run
+ * @return string
+ */
+char* existingRunHelper(int type,int value){
+    static char exist_run_helper[75];
+    if(type == 1){ // essais
+        if (value == 1){
+            strcat(exist_run_helper,GRN);
+            strcat(exist_run_helper,"DONE ");
+            strcat(exist_run_helper,RESET);
+            strcat(exist_run_helper,RED);
+            strcat(exist_run_helper,"TODO TODO");
+            strcat(exist_run_helper,RESET);
+        }
+        else if (value == 2){
+            strcat(exist_run_helper,GRN);
+            strcat(exist_run_helper,"DONE DONE ");
+            strcat(exist_run_helper,RESET);
+            strcat(exist_run_helper,RED);
+            strcat(exist_run_helper,"TODO");
+            strcat(exist_run_helper,RESET);
+
+        }
+        else if (value == 3){
+            strcat(exist_run_helper,GRN);
+            strcat(exist_run_helper,"DONE DONE DONE");
+            strcat(exist_run_helper,RESET);
+
+        }
+        else {
+            strcat(exist_run_helper,RED);
+            strcat(exist_run_helper,"TODO TODO TODO");
+            strcat(exist_run_helper,RESET);
+        }
+    }
+    else { // qualif and run
+        if(value == 1){
+            strcat(exist_run_helper,GRN);
+            strcat(exist_run_helper,"DONE");
+            strcat(exist_run_helper,RESET);
+        }
+        else {
+            strcat(exist_run_helper,RED);
+            strcat(exist_run_helper,"TODO");
+            strcat(exist_run_helper,RESET);
+        }
+    }
+    return exist_run_helper;
+}
+
+/**
  * printf les nom des courses déja trouvée dans le log
  */
 void printExistingRun(){
@@ -394,13 +450,41 @@ void printExistingRun(){
         printf("can not open logfile.txt for writing or doens't exist.\n");
         return;   // error de log, sortie
     }
-
     printf("\nCurrent Race Data found \n");
-    printf(YEL"----------------------------------------------------------------\n"RESET);
     char buffer[MAXCHAR];
+    char * data_save_ptr;
+    printf("lecture depuis le fichier log à l'adresse %s\n",log_path);
+    printf(YEL"----------------------------------------------------------------\n"RESET);
     while(fgets(buffer, MAXCHAR, logFile) != NULL){
-        char *buffer_name = strtok(buffer,part_separator);
-        printf(CYN"\t%s \n"RESET,buffer_name);
+        // name
+        printf("1");
+        char *buffer_run = strtok_r(buffer,part_separator, &data_save_ptr);
+        char *tmp_name = buffer_run;
+        // status
+        printf("2");
+        buffer_run = strtok_r(buffer,part_separator, &data_save_ptr);
+        long tmp;
+        printf("3");
+        char *buffer_type = strtok_r(buffer,data_save_ptr, &data_save_ptr);
+        printf("4");
+        tmp = strtol(buffer_type, NULL, 3);
+        int tmp_essais = (int) tmp;
+        printf("5");
+        buffer_type = strtok_r(buffer,data_save_ptr, &data_save_ptr);
+        printf("6");
+        tmp = strtol(buffer_type, NULL, 3);
+        int tmp_qualif = (int) tmp;
+        printf("7");
+        buffer_type = strtok_r(buffer,data_save_ptr, &data_save_ptr);
+        printf("8");
+        tmp = strtol(buffer_type, NULL, 3);
+        int tmp_run = (int) tmp;
+        // affichage course
+        printf(CYN"\t%s | "RESET,tmp_name);
+        printf("| essais : %s",existingRunHelper(1,tmp_essais));
+        printf("| qualif : %s",existingRunHelper(2,tmp_qualif));
+        printf("| course : %s",existingRunHelper(3,tmp_run));
+        printf("\n");
     }
     printf(YEL"----------------------------------------------------------------\n"RESET);
     fclose(logFile);
@@ -576,9 +660,9 @@ int* genArrayByString(char* line){
 }
 
 /**
- * demande du choix de la partie de course a lancer
- * @return
- */
+* demande du choix de la partie de course a lancer
+* @return
+*/
 int choiceTypeOfRun(){
     char type_string[5];
     int type =0;
@@ -622,7 +706,7 @@ void circuit_son(int shmid,int carPosition){
     }
     for(int i = 0; i < TURN ; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
-            sem_wait(&semaphore);
+            //sem_wait(&semaphore);
             if (currentCar->out){
                 currentCar->circuit[i][j] = 0;
             }
@@ -648,7 +732,7 @@ void circuit_son(int shmid,int carPosition){
                     currentCar->stands++;
                     currentCar->in_stands = false;
                 }
-                sem_post(&semaphore);
+                //sem_post(&semaphore);
             }
         }
     }
@@ -666,13 +750,13 @@ void circuit_father(int shmid,char* entry){
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
-        sem_wait(&semaphore);
+        //sem_wait(&semaphore);
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
         clrscr();
         showCurrentSect(entry);
         showBestSect();
-        sem_post(&semaphore);
+        //sem_post(&semaphore);
     }while ((wpid = wait(&status)) > 0);
 }
 
@@ -694,9 +778,14 @@ void genLog(){
         printf("can not open logfile.txt for writing.\n");
         return;   // error de log, sortie
     }
-
     // data to put in the log file
+    // race name
     fprintf(logFile,"%s",race_name);
+    fprintf(logFile,"$");
+    // race state
+    fprintf(logFile,"%d!",essais);
+    fprintf(logFile,"%d!",qualif);
+    fprintf(logFile,"%d!",course);
     fprintf(logFile,"$");
     // list of car number
     for(int car = 0; car < CAR; car ++){
@@ -744,9 +833,24 @@ void recupLog(){
             char *buffer_part = strtok_r(buffer, part_separator, &part_save_ptr);
             if (strcmp(buffer_part, race_name) == 0) { // si c est la bonne course
                 found = true;
+                // race state
+                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+                long tmp;
+                // essais
+                char *buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                tmp = strtol(buffer_data, NULL, 3);
+                essais = (int) tmp;
+                // qualid
+                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                tmp = strtol(buffer_data, NULL, 3);
+                qualif = (int) tmp;
+                // course
+                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                tmp = strtol(buffer_data, NULL, 3);
+                course = (int) tmp;
                 // récupération de la partie numéro de voiture
                 buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
-                char *buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
                 printf("récupération des numéro de voiture \n");
                 for(int car = 0; car < CAR; car++){
                     long tmp;
@@ -764,7 +868,6 @@ void recupLog(){
                 buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
                 printf("récupération du temps total de partie\n");
                 for(int car = 0; car < CAR; car++){
-                    long tmp;
                     tmp = strtol(buffer_data, NULL, 10);
                     carList[car].totalTime = (int) tmp;
                     printf("car total time %d = %d \n", carList[car].number, carList[car].totalTime);
@@ -849,6 +952,7 @@ void lunchEssais(){
     showBestSect(); // affichage des meilleurs temps par secteurs
     showRunTotal(1); // affichage récapitulatif avec bannière
 
+    essais += 1;
     // génération du fichier de résultats
     char* result_name = "Essais";
     outputFile(result_name);
@@ -881,6 +985,7 @@ void lunchQualif(){
     showBestSect(); // affichage des meilleurs temps par secteurs
     showRunTotal(1); // affichage récapitulatif avec bannière
 
+    qualif += 1;
     // génération du fichier de résultats
     char* result_name = "Qualif";
     outputFile(result_name);
@@ -900,7 +1005,7 @@ void lunchRun(){
     showBestSect(); // affichage des meilleurs temps par secteurs
     showRunTotal(1); // affichage récapitulatif avec bannière
 
-
+    course +=1;
     // génération du fichier de résultats
     char* result_name = "Course";
     outputFile(result_name);
@@ -922,7 +1027,7 @@ int main(int argc, char *argv[]) {
     getPath();
     raceLoading();
     //mise en place du sémaphore
-    sem_init(&semaphore, 0, 1);
+    //sem_init(&semaphore, 0, 1);
     // allocation de la mem partagée
     shmid = shmget(KEY, (CAR * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1) {
@@ -947,7 +1052,7 @@ int main(int argc, char *argv[]) {
     //lunchEssais();
 
     // suppression du semaphore
-    sem_destroy(&semaphore);
+    //sem_destroy(&semaphore);
     // fin de la course
     printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
