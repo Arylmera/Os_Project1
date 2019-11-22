@@ -244,7 +244,7 @@ void bubbleSortCarList(){
 }
 
 /**
- * return le path symbolique de l'emplacement d'exécution du programme
+ * return le path symbolique de l'emplacement d'exécution du programme sous osx
  * @return char[1024]
  */
 void getPath(){
@@ -262,7 +262,7 @@ void getPath(){
  * @param dir_name
  */
 void getDir(char* dir_name){
-    getPath();
+    //getPath();
     strcpy(dir_path,path);
     strcat(dir_path,"-");
     strcat(dir_path,dir_name);
@@ -453,8 +453,9 @@ void printExistingRun(){
     printf("\nCurrent Race Data found \n");
     char buffer[MAXCHAR];
     char * data_save_ptr;
-    printf("lecture depuis le fichier log à l'adresse %s\n",log_path);
+    printf("lecture depuis le fichier log à l'adresse : %s\n",log_path);
     printf(YEL"----------------------------------------------------------------\n"RESET);
+    printf("0");
     while(fgets(buffer, MAXCHAR, logFile) != NULL){
         // name
         printf("1");
@@ -582,7 +583,7 @@ void outputData(){
  */
 void outputFile(char* result_name){
     char result_file_path[PATH_SIZE];
-    getPath();
+    //getPath();
     getDir(race_name);
     printf(RED"current path : %s \n"RESET,path);
     printf(RED"current dir : %s \n"RESET,dir_path);
@@ -1023,8 +1024,8 @@ void lunchRun(){
 int main(int argc, char *argv[]) {
     // récupération des données de la course depuis un fichier
     clrscr();
+    strcpy(path,realpath(argv[0],0));
     showWelcome();
-    getPath();
     raceLoading();
     //mise en place du sémaphore
     //sem_init(&semaphore, 0, 1);
