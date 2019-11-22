@@ -20,16 +20,17 @@
 #include <string.h> //memset
 #include <sys/wait.h> //wait
 #include <sys/stat.h> // mkdir
-#include <sys/types.h>
+//#include <sys/types.h>
 #include <sys/shm.h>
 #include <ctype.h>
 #include <semaphore.h>
+#include <sys/time.h>
 
 /***********************************************************************************************************************
  *                               définitions
  **********************************************************************************************************************/
 
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 
 #define RED   "\x1B[31m"
 #define GRN   "\x1B[32m"
@@ -37,7 +38,6 @@
 #define BLU   "\x1B[34m"
 #define MAG   "\x1B[35m"
 #define CYN   "\x1B[36m"
-#define WHT   "\x1B[37m"
 #define RESET "\x1B[0m"
 
 #define TURN 3
@@ -244,25 +244,10 @@ void bubbleSortCarList(){
 }
 
 /**
- * return le path symbolique de l'emplacement d'exécution du programme sous osx
- * @return char[1024]
- */
-void getPath(){
-    u_int32_t size = sizeof(path);
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        //printf("Files will be saved to : %s\n", path);
-    }
-    else{
-        printf("buffer too small; need size %u to define the path of save\n", size);
-    }
-}
-
-/**
  * mise a jour du path du dossier de course
  * @param dir_name
  */
 void getDir(char* dir_name){
-    //getPath();
     strcpy(dir_path,path);
     strcat(dir_path,"-");
     strcat(dir_path,dir_name);
@@ -381,6 +366,7 @@ void showBestSect(){
  * message de bien venus et demande des paramètres de la course
  */
 void showWelcome(){
+    printf("\n");
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
     printf(RED "                                            Welcome to the Race                                                \n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
@@ -583,7 +569,6 @@ void outputData(){
  */
 void outputFile(char* result_name){
     char result_file_path[PATH_SIZE];
-    //getPath();
     getDir(race_name);
     printf(RED"current path : %s \n"RESET,path);
     printf(RED"current dir : %s \n"RESET,dir_path);
@@ -698,7 +683,7 @@ void circuit_son(int shmid,int carPosition){
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     printf("Départ de la voiture %d\n",carNumber);
     f1 *currentCar;
-    srand(time()+getpid()); // génération du nouveau random pour chaque fils
+    srand(time(NULL)+getpid()); // génération du nouveau random pour chaque fils
     for(int i = 0; i < CAR; i++){
         if(output[i].number == carNumber){
             currentCar = &output[i];
@@ -1018,7 +1003,7 @@ void lunchRun(){
  **********************************************************************************************************************/
 
 /**
- *
+ *  function main
  * @return
  */
 int main(int argc, char *argv[]) {
