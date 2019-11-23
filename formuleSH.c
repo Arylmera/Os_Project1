@@ -48,7 +48,7 @@
 #define OUTPOURCENT 2
 #define SLEEPDIVISER 20
 #define PATH_SIZE 1024
-#define MAXCHAR 1024
+#define MAXCHAR 256
 
 /***********************************************************************************************************************
  *                               déclarations et variables globales
@@ -378,7 +378,8 @@ void showWelcome(){
  * @return string
  */
 char* existingRunHelper(int type,int value){
-    static char exist_run_helper[75];
+    static char exist_run_helper[75] = {0};
+    memset(exist_run_helper,0,sizeof(exist_run_helper));
     if(type == 1){ // essais
         if (value == 1){
             strcat(exist_run_helper,GRN);
@@ -432,45 +433,39 @@ void printExistingRun(){
     strcpy(log_path,path);
     strcat(log_path,"-log.txt");
     logFile = fopen(log_path, "rb");
-    if (!logFile) {
-        printf("can not open logfile.txt for writing or doens't exist.\n");
+    if (logFile == NULL) {
+        printf("No past run found or log files missing.\n");
         return;   // error de log, sortie
     }
     printf("\nCurrent Race Data found \n");
+
     char buffer[MAXCHAR];
     char * data_save_ptr;
+    char * type_save_ptr;
+
     printf("lecture depuis le fichier log à l'adresse : %s\n",log_path);
     printf(YEL"----------------------------------------------------------------\n"RESET);
-    printf("0");
     while(fgets(buffer, MAXCHAR, logFile) != NULL){
         // name
-        printf("1");
-        char *buffer_run = strtok_r(buffer,part_separator, &data_save_ptr);
+        char *buffer_run = strtok_r(buffer, part_separator, &data_save_ptr);
         char *tmp_name = buffer_run;
         // status
-        printf("2");
-        buffer_run = strtok_r(buffer,part_separator, &data_save_ptr);
+        buffer_run = strtok_r(NULL,part_separator, &data_save_ptr);
         long tmp;
-        printf("3");
-        char *buffer_type = strtok_r(buffer,data_save_ptr, &data_save_ptr);
-        printf("4");
+        char *buffer_type = strtok_r(buffer_run, data_separator, &type_save_ptr); // essais
         tmp = strtol(buffer_type, NULL, 3);
         int tmp_essais = (int) tmp;
-        printf("5");
-        buffer_type = strtok_r(buffer,data_save_ptr, &data_save_ptr);
-        printf("6");
+        buffer_type = strtok_r(NULL, data_separator, &type_save_ptr); // qualif
         tmp = strtol(buffer_type, NULL, 3);
         int tmp_qualif = (int) tmp;
-        printf("7");
-        buffer_type = strtok_r(buffer,data_save_ptr, &data_save_ptr);
-        printf("8");
+        buffer_type = strtok_r(NULL, data_separator, &type_save_ptr); // run
         tmp = strtol(buffer_type, NULL, 3);
         int tmp_run = (int) tmp;
         // affichage course
-        printf(CYN"\t%s | "RESET,tmp_name);
-        printf("| essais : %s",existingRunHelper(1,tmp_essais));
-        printf("| qualif : %s",existingRunHelper(2,tmp_qualif));
-        printf("| course : %s",existingRunHelper(3,tmp_run));
+        printf(CYN"\t%s"RESET" |",tmp_name);
+        printf("| essais : %s \t",existingRunHelper(1,tmp_essais));
+        printf("| qualif : %s \t",existingRunHelper(2,tmp_qualif));
+        printf("| course : %s \n",existingRunHelper(3,tmp_run));
         printf("\n");
     }
     printf(YEL"----------------------------------------------------------------\n"RESET);
@@ -513,6 +508,9 @@ bool useDefaultCarList(){
 /***********************************************************************************************************************
  *                               fonctions Gestion des fichiers
  **********************************************************************************************************************/
+/**
+ * output des données dans le fichier prévus pour la lecture depuis l'utilisateur
+ */
 void outputData(){
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"                                            Tableau des Résultats                                              \n");
@@ -827,11 +825,11 @@ void recupLog(){
                 tmp = strtol(buffer_data, NULL, 3);
                 essais = (int) tmp;
                 // qualid
-                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
                 tmp = strtol(buffer_data, NULL, 3);
                 qualif = (int) tmp;
                 // course
-                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+                buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
                 tmp = strtol(buffer_data, NULL, 3);
                 course = (int) tmp;
                 // récupération de la partie numéro de voiture
