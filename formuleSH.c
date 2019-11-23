@@ -127,7 +127,7 @@ void init_car_list(int *carListNumber){
 /**
  * initalisation de la shared memory
  */
-void init_mem(shmid){
+void init_mem(int shmid){
     memset(best_sect_time,0,sizeof(best_sect_time));
     f1 *mem = (f1 *) shmat(shmid, 0, 0);
     for(int i = 0; i < CAR; i++){
@@ -139,12 +139,13 @@ void init_mem(shmid){
  * remise a zero des valeurs propre a la course pour chaque voiture
  */
 void resetTimeCar(){
+    f1 *mem = (f1 *) shmat(shmid, 0, 0);
     for(int i = 0; i < CAR; i++){
-        carList[i].stands = 0;
-        carList[i].in_stands = false;
-        carList[i].totalTime = 0;
-        memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
-        memset(carList[i].currrent_section, 0, sizeof(carList[i].currrent_section));
+        mem[i].stands = 0;
+        mem[i].in_stands = false;
+        mem[i].totalTime = 0;
+        memset(mem[i].circuit, 0, sizeof(mem[i].circuit));
+        memset(mem[i].currrent_section, 0, sizeof(mem[i].currrent_section));
     }
     memset(best_sect_time,0,sizeof(best_sect_time));
 }
@@ -270,7 +271,6 @@ void clrscr(){
  * renvois du char P si la voiture est au stand N si non
  *
  * @return R = Running / O = Out / P = Pit
- *
  */
 char status(bool stand,bool out){
     if (stand){
@@ -623,27 +623,6 @@ void getCarNumber(){
 }
 
 /**
- * génération d'un tableau de int sur base d'un string par dilimiteur !
- * @param line string délimité par des ! entre les nombres
- * @return array[CAR] de int
- */
-int* genArrayByString(char* line){
-    int j = 0;
-    for(int i = 0; i < CAR; i++){
-        char tmp[10];
-        int x = 0;
-        while ((line[j] != '!') && j < strlen(line)){
-            tmp[x] = line[j];
-            x++;
-            j++;
-        }
-        j++;
-        buffer_array[i] = (int) tmp;
-    }
-    return buffer_array;
-}
-
-/**
 * demande du choix de la partie de course a lancer
 * @return
 */
@@ -663,9 +642,10 @@ int choiceTypeOfRun(){
  * met les voitures out sur base du nombre de voitures données a partir de la fin
  * @param num nombre de voiture a mettre out
  */
-void setOut(int num){
-    for(int car = CAR; car > (CAR-(num+1)); car-- ){
-        carList[car].out = true;
+void setOut(int shmid,int num){
+    f1 *mem = (f1 *) shmat(shmid, 0, 0);
+    for(int car = CAR; car > (CAR-(num)); car-- ){
+        mem[car].out = true;
     }
 }
 
@@ -777,11 +757,13 @@ void genLog(){
 
     }
     fprintf(logFile,"$");
+    /*
     // total time of cars
     for(int car = 0; car < CAR; car ++){
         fprintf(logFile,"%d!",carList[car].totalTime);
     }
     fprintf(logFile,"$");
+     */
     // car status
     for(int car = 0; car < CAR; car ++){
         fprintf(logFile,"%c!",status(carList[car].in_stands,carList[car].out));
@@ -854,6 +836,7 @@ void recupLog(){
             printf("initialisation de la liste des voiture sur base des numéro chargé \n");
             init_car_list(carListNumber);
             printf("initalisation effectuée\n");
+            /*
             // récupération de la partie des temps totaux
             buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
             buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
@@ -865,6 +848,7 @@ void recupLog(){
                 buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
             }
             printf("temps totaux loaded\n");
+             */
             // récupération des status de voiture
             buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
             buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
@@ -943,18 +927,24 @@ void raceLoading(){
  * Gestion des essais d'un course
  */
 void lunchEssais(){
-    gen_circuit(shmid,"Essais"); // génération de la course
+    if(essais == 3){ // si tout les essais ont déja ete fait
+        printf("You already have done all the essais for this run \n");
+        return;
+    }
+    char essais_name[12];
+    sprintf(essais_name,"Essais-%d",(essais+1));
+    gen_circuit(shmid,essais_name); // génération de la course
     bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
     clrscr(); // clear de la console
     showRun(); // affichage des stats globales des voitures
-    showCurrentSect("Essais"); // affichages des meilleurs sections par voiture
+    showCurrentSect(essais_name); // affichages des meilleurs sections par voiture
     showBestSect(); // affichage des meilleurs temps par secteurs
     showRunTotal(1); // affichage récapitulatif avec bannière
 
     essais += 1;
     // génération du fichier de résultats
-    char* result_name = "Essais";
-    outputFile(result_name);
+    char* result_name = essais_name;
+    outputFile(essais_name);
     genLog();
 }
 
@@ -962,25 +952,29 @@ void lunchEssais(){
  * Gestion des qualif d'une course
  */
 void lunchQualif(){
+    if (qualif == 1){ // si qualif deja fait
+        printf("You already have done the qualifications for this run \n");
+        return;
+    }
     // gestion des qualif
     // Q1
     gen_circuit(shmid,"Qualif -- Q1");
     bubbleSortCarList();
-    setOut(5); // 5 dernières OUT
-    resetTimeCar();
+    setOut(shmid,5); // 5 dernières OUT
     // Q2
+    resetTimeCar();
     gen_circuit(shmid,"Qualif -- Q2");
     bubbleSortCarList();
-    setOut(10); // 10 dernières OUT
-    resetTimeCar();
+    setOut(shmid,10); // 10 dernières OUT
     // Q3
+    resetTimeCar();
     gen_circuit(shmid,"Qualif -- Q3");
     bubbleSortCarList();
     // affichage final
     bubbleSortCarList();
     clrscr(); // clear de la console
     showRun(); // affichage des stats globales des voitures
-    showCurrentSect("Qualif -- Q3"); // affichages des meilleurs sections par voiture
+    showCurrentSect("Qualif"); // affichages des meilleurs sections par voiture
     showBestSect(); // affichage des meilleurs temps par secteurs
     showRunTotal(1); // affichage récapitulatif avec bannière
 
@@ -995,6 +989,10 @@ void lunchQualif(){
  * Gestion de la crouse en elle même
  */
 void lunchRun(){
+    if (course == 1){ // si course déja fait
+        printf("You already have done the run \n");
+        return;
+    }
     // gestion de la course
     gen_circuit(shmid,"Course"); // génération de la course
     bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
