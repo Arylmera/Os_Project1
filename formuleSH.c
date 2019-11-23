@@ -338,12 +338,12 @@ void showCurrentSect(char* entry){
     for(int car = 0; car < CAR; car++){
         printf(CYN "---------------------------------------------------------------------------------------------------------------\n" RESET);
         printf(BLU"Voiture"RESET" %3d "CYN"||"GRN" S1 "RESET": %3d "CYN"|"GRN" S2 "RESET": %3d "CYN"|"GRN" S3 "RESET": %3d "CYN"|--|"RED" Status "RESET": %2c "CYN"|--|"BLU" Total "RESET": %4d\n",
-                carList[car].number,
-                carList[car].currrent_section[0],
-                carList[car].currrent_section[1],
-                carList[car].currrent_section[2],
-                status(carList[car].in_stands,carList[car].out),
-                carList[car].totalTime);
+               carList[car].number,
+               carList[car].currrent_section[0],
+               carList[car].currrent_section[1],
+               carList[car].currrent_section[2],
+               status(carList[car].in_stands,carList[car].out),
+               carList[car].totalTime);
     }
     printf(CYN "---------------------------------------------------------------------------------------------------------------\n" RESET);
     printf(RED "---------------------------------------------------------------------------------------------------------------\n" RESET);
@@ -528,11 +528,11 @@ void outputData(){
     for(int car = 0; car < CAR; car++){
         fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
         fprintf(file,"Voiture %3d || S1 : %3d | S2 : %3d | S3 : %3d |--| Total : %4d\n",
-               carList[car].number,
-               carList[car].currrent_section[0],
-               carList[car].currrent_section[1],
-               carList[car].currrent_section[2],
-               carList[car].totalTime);
+                carList[car].number,
+                carList[car].currrent_section[0],
+                carList[car].currrent_section[1],
+                carList[car].currrent_section[2],
+                carList[car].totalTime);
     }
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"                                          Best Time For Secteurs                                               \n");
@@ -795,11 +795,16 @@ void genLog(){
  * lecture depuis le fichier de log
  */
 void recupLog(){
+    FILE * logFile_tmp;
+    char log_path_tmp[PATH_SIZE];
     char log_path[PATH_SIZE];
     strcpy(log_path,path);
+    memcpy(log_path_tmp, log_path, PATH_SIZE);
     strcat(log_path,"-log.txt");
+    strcat(log_path_tmp,"-log_tmp.txt");
 
     logFile = fopen(log_path, "rb");
+    logFile_tmp = fopen(log_path_tmp, "wt");
     if (!logFile) {
         printf("can not open logfile.txt for writing or doens't exist.\n");
         return;   // error de log, sortie
@@ -807,81 +812,91 @@ void recupLog(){
     // lecture du fichier log
     char buffer[MAXCHAR];
     bool found = false;
-    
+
     char * part_save_ptr;
     char * data_save_ptr;
 
-    do {
-        while ((fgets(buffer, MAXCHAR, logFile) != NULL) && !found) {
-            // récupération de la 1er partie etant le nom
-            char *buffer_part = strtok_r(buffer, part_separator, &part_save_ptr);
-            if (strcmp(buffer_part, race_name) == 0) { // si c est la bonne course
-                found = true;
-                // race state
-                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+    while ((fgets(buffer, MAXCHAR, logFile) != NULL)) {
+        // récupération de la 1er partie etant le nom
+        char buffer_line[MAXCHAR];
+        memset(buffer_line,0,sizeof(buffer_line));
+        memcpy(buffer_line,buffer,sizeof(buffer));
+        char *buffer_part = strtok_r(buffer, part_separator, &part_save_ptr);
+        if (strcmp(buffer_part, race_name) == 0) { // si c est la bonne course
+            found = true;
+            // race state
+            buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+            long tmp;
+            // essais
+            char *buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+            tmp = strtol(buffer_data, NULL, 3);
+            essais = (int) tmp;
+            // qualid
+            buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
+            tmp = strtol(buffer_data, NULL, 3);
+            qualif = (int) tmp;
+            // course
+            buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
+            tmp = strtol(buffer_data, NULL, 3);
+            course = (int) tmp;
+            // récupération de la partie numéro de voiture
+            buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+            buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+            printf("récupération des numéro de voiture \n");
+            for(int car = 0; car < CAR; car++){
                 long tmp;
-                // essais
-                char *buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
-                tmp = strtol(buffer_data, NULL, 3);
-                essais = (int) tmp;
-                // qualid
+                tmp = strtol(buffer_data, NULL, 10);
+                carListNumber[car] = (int) tmp;
+                printf("car number %d \n", carListNumber[car]);
                 buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
-                tmp = strtol(buffer_data, NULL, 3);
-                qualif = (int) tmp;
-                // course
+            }
+            printf("récupération effectuée \n");
+            printf("initialisation de la liste des voiture sur base des numéro chargé \n");
+            init_car_list(carListNumber);
+            printf("initalisation effectuée\n");
+            // récupération de la partie des temps totaux
+            buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+            buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+            printf("récupération du temps total de partie\n");
+            for(int car = 0; car < CAR; car++){
+                tmp = strtol(buffer_data, NULL, 10);
+                carList[car].totalTime = (int) tmp;
+                printf("car total time %d = %d \n", carList[car].number, carList[car].totalTime);
                 buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
-                tmp = strtol(buffer_data, NULL, 3);
-                course = (int) tmp;
-                // récupération de la partie numéro de voiture
-                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
-                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
-                printf("récupération des numéro de voiture \n");
-                for(int car = 0; car < CAR; car++){
-                    long tmp;
-                    tmp = strtol(buffer_data, NULL, 10);
-                    carListNumber[car] = (int) tmp;
-                    printf("car number %d \n", carListNumber[car]);
-                    buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
+            }
+            printf("temps totaux loaded\n");
+            // récupération des status de voiture
+            buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
+            buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
+            printf("récupération du status des voitures\n");
+            for(int car = 0; car < CAR; car++){
+                char value = buffer_data[0];
+                if (value == 'O') {
+                    carList[car].out = true;
+                    printf("car %d, is out \n", carList[car].number);
                 }
-                printf("récupération effectuée \n");
-                printf("initialisation de la liste des voiture sur base des numéro chargé \n");
-                init_car_list(carListNumber);
-                printf("initalisation effectuée\n");
-                // récupération de la partie des temps totaux
-                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
-                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
-                printf("récupération du temps total de partie\n");
-                for(int car = 0; car < CAR; car++){
-                    tmp = strtol(buffer_data, NULL, 10);
-                    carList[car].totalTime = (int) tmp;
-                    printf("car total time %d = %d \n", carList[car].number, carList[car].totalTime);
-                    buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
-                }
-                printf("temps totaux loaded\n");
-                // récupération des status de voiture
-                buffer_part = strtok_r(NULL, part_separator, &part_save_ptr);
-                buffer_data = strtok_r(buffer_part, data_separator, &data_save_ptr);
-                printf("récupération du status des voitures\n");
-                for(int car = 0; car < CAR; car++){
-                    char value = buffer_data[0];
-                    if (value == 'O') {
-                        carList[car].out = true;
-                        printf("car %d, is out \n", carList[car].number);
-                    }
-                    buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
-                }
+                buffer_data = strtok_r(NULL, data_separator, &data_save_ptr);
             }
         }
-        if (!found) {
-            printf("No run under this name found\n");
-            printf("please enter the name of the run you whant to load : ");
-            scanf("%s",race_name);
-            printf("\n");
+        else { // si ce n'est pa la bonne ligne
+            fputs(buffer_line, logFile_tmp);
         }
-    }while(!found);
+    }
+    if (!found) {
+        printf("No run under this name found\n");
+        printf("please enter the name of the run you whant to load : ");
+        scanf("%s",race_name);
+        printf("\n");
+    }
 
     // fermeture du log
     fclose(logFile);
+    fclose(logFile_tmp);
+    // switch des 2 files pour supprimer la ligne non voulue
+    remove(log_path);
+    rename(log_path_tmp, log_path);
+    //clear de la console
+    clrscr();
 }
 
 /**
