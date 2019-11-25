@@ -73,7 +73,6 @@ int shmid;
 char path[(PATH_SIZE/2)+50];
 char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
-int buffer_array[CAR];
 int best_sect_time[SECTION];
 
 sem_t semaphore; // déclatration du sémaphore
@@ -465,7 +464,7 @@ void printExistingRun(){
         printf(CYN"\t%s"RESET" |",tmp_name);
         printf("| essais : %s \t",existingRunHelper(1,tmp_essais));
         printf("| qualif : %s \t",existingRunHelper(2,tmp_qualif));
-        printf("| course : %s \n",existingRunHelper(3,tmp_run));
+        printf("| course : %s \t",existingRunHelper(3,tmp_run));
         printf("\n");
     }
     printf(YEL"----------------------------------------------------------------\n"RESET);
@@ -478,7 +477,7 @@ void printExistingRun(){
  */
 bool continueTheRace(){
     printExistingRun();
-    printf(CYN"Do you plan to run a new race ?\n"RESET);
+    printf(CYN"Do you plan to continue a race ?\n"RESET);
     printf("enter :"GRN" Y to continue \n"RESET);
     printf("enter : "RED" N to start a new one \n"RESET);
     char new_race;
@@ -503,6 +502,18 @@ bool useDefaultCarList(){
         return true;
     }
     return false;
+}
+
+void checkBestSect(){
+    for (int turn = 0; turn < TURN; turn++) {
+        for (int sec = 0; sec < SECTION; sec++) {
+            for (int car = 0; car < CAR; car++) {
+                if (best_sect_time[sec] > carList[car].circuit[turn][sec] || best_sect_time[sec] == 0) {
+                    best_sect_time[sec] = carList[car].circuit[turn][sec];
+                }
+            }
+        }
+    }
 }
 
 /***********************************************************************************************************************
@@ -688,7 +699,7 @@ void circuit_son(int shmid,int carPosition){
                     currentCar->out = true;
                 }
                 // test pour stand
-                if ((genRandom() < STANDPOURCENT || (i == (TURN - 1) && currentCar->stands == 0)) && j == SECTION) { // 50% de s'arreter ou si jamais arrêter pendant la course
+                if ((genRandom() < STANDPOURCENT || ((i == (TURN - 1)) && currentCar->stands == 0)) && j == (SECTION-1)) { // x% de s'arreter ou si jamais arrêter pendant la course
                     currentCar->in_stands = true;
                     int time_in_stands = genRandomStand();
                     currentCar->circuit[i][SECTION - 1] += time_in_stands;
@@ -719,6 +730,7 @@ void circuit_father(int shmid,char* entry){
         bubbleSortCarList();
         clrscr();
         showCurrentSect(entry);
+        checkBestSect();
         showBestSect();
         //sem_post(&semaphore);
     }while ((wpid = wait(&status)) > 0);
