@@ -380,7 +380,12 @@ char* existingRunHelper(int type,int value){
     static char exist_run_helper[75] = {0};
     memset(exist_run_helper,0,sizeof(exist_run_helper));
     if(type == 1){ // essais
-        if (value == 1){
+        if (value == 0){
+            strcat(exist_run_helper,RED);
+            strcat(exist_run_helper,"TODO TODO TODO");
+            strcat(exist_run_helper,RESET);
+        }
+        else if (value == 1){
             strcat(exist_run_helper,GRN);
             strcat(exist_run_helper,"DONE ");
             strcat(exist_run_helper,RESET);
@@ -402,11 +407,6 @@ char* existingRunHelper(int type,int value){
             strcat(exist_run_helper,"DONE DONE DONE");
             strcat(exist_run_helper,RESET);
 
-        }
-        else {
-            strcat(exist_run_helper,RED);
-            strcat(exist_run_helper,"TODO TODO TODO");
-            strcat(exist_run_helper,RESET);
         }
     }
     else { // qualif and run
@@ -964,7 +964,7 @@ void lunchEssais(){
  */
 void lunchQualif(){
     if(essais < 3){
-        printf("please run all the essais before.");
+        printf("please run all the essais before.\n");
     }
     if (qualif == 1){ // si qualif deja fait
         printf("You already have done the qualifications for this run \n");
@@ -1004,7 +1004,7 @@ void lunchQualif(){
  */
 void lunchRun(){
     if(essais < 3 || qualif != 1){
-        printf("Please run all the essais and qualifications before.");
+        printf("Please run all the essais and qualifications before.\n");
     }
     if (course == 1){ // si course déja fait
         printf("You already have done the run \n");
