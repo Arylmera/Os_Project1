@@ -461,7 +461,7 @@ void printExistingRun(){
         tmp = strtol(buffer_type, NULL, 3);
         int tmp_run = (int) tmp;
         // affichage course
-        printf(CYN"\t%s"RESET" |",tmp_name);
+        printf(CYN"\t %10s "RESET" |",tmp_name);
         printf("| essais : %s \t",existingRunHelper(1,tmp_essais));
         printf("| qualif : %s \t",existingRunHelper(2,tmp_qualif));
         printf("| course : %s \t",existingRunHelper(3,tmp_run));
@@ -504,6 +504,9 @@ bool useDefaultCarList(){
     return false;
 }
 
+/**
+ * check des best temps aux secteurs
+ */
 void checkBestSect(){
     for (int turn = 0; turn < TURN; turn++) {
         for (int sec = 0; sec < SECTION; sec++) {
@@ -640,7 +643,7 @@ void getCarNumber(){
 int choiceTypeOfRun(){
     char type_string[5];
     int type =0;
-    printf("Quelle partie de la course voulez-vous lancer ?\n");
+    printf(CYN"Quelle partie de la course voulez-vous lancer ?\n"RESET);
     printf("\t 1 : Les essais\n");
     printf("\t 2 : Les Qualifs\n");
     printf("\t 3 : La  Course\n");
@@ -689,10 +692,6 @@ void circuit_son(int shmid,int carPosition){
                 int section_time = genSection();
                 currentCar->circuit[i][j] = section_time;
                 currentCar->currrent_section[j] = section_time;
-                // vérification des temps des meilleurs secteurs
-                if(best_sect_time[j] > section_time || best_sect_time[j] == 0){
-                    best_sect_time[j] = section_time;
-                }
                 currentCar->totalTime += section_time;
                 // test random out de la voiture
                 if (genRandom() < OUTPOURCENT) {
@@ -964,6 +963,9 @@ void lunchEssais(){
  * Gestion des qualif d'une course
  */
 void lunchQualif(){
+    if(essais < 3){
+        printf("please run all the essais before.");
+    }
     if (qualif == 1){ // si qualif deja fait
         printf("You already have done the qualifications for this run \n");
         return;
@@ -1001,6 +1003,9 @@ void lunchQualif(){
  * Gestion de la crouse en elle même
  */
 void lunchRun(){
+    if(essais < 3 || qualif != 1){
+        printf("Please run all the essais and qualifications before.");
+    }
     if (course == 1){ // si course déja fait
         printf("You already have done the run \n");
         return;
