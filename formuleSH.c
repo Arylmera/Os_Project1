@@ -23,7 +23,7 @@
 //#include <sys/types.h>
 #include <sys/shm.h>
 #include <ctype.h>
-#include <semaphore.h>
+#include <semaphore.h> // semaphore
 #include <sys/time.h>
 
 /***********************************************************************************************************************
@@ -402,7 +402,7 @@ char* existingRunHelper(int type,int value){
             strcat(exist_run_helper,RESET);
 
         }
-        else if (value == 3){
+        else{
             strcat(exist_run_helper,GRN);
             strcat(exist_run_helper,"DONE DONE DONE");
             strcat(exist_run_helper,RESET);
@@ -674,39 +674,42 @@ void circuit_son(int shmid,int carPosition){
     int carNumber = carListNumber[carPosition];
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     printf("Départ de la voiture %d\n",carNumber);
-    f1 *currentCar;
+    f1 currentCar = init_car(carNumber);
+    f1 *currentCar_ad;
     srand(time(NULL)+getpid()); // génération du nouveau random pour chaque fils
     for(int i = 0; i < CAR; i++){
         if(output[i].number == carNumber){
-            currentCar = &output[i];
+            currentCar_ad = &output[i];
+            memcpy(&currentCar, &output[i], sizeof(output[i]));
             break;
         }
     }
     for(int i = 0; i < TURN ; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
-            //sem_wait(&semaphore);
-            if (currentCar->out){
-                currentCar->circuit[i][j] = 0;
+            if (currentCar.out){
+                currentCar.circuit[i][j] = 0;
             }
             else {
                 int section_time = genSection();
-                currentCar->circuit[i][j] = section_time;
-                currentCar->currrent_section[j] = section_time;
-                currentCar->totalTime += section_time;
+                currentCar.circuit[i][j] = section_time;
+                currentCar.currrent_section[j] = section_time;
+                currentCar.totalTime += section_time;
                 // test random out de la voiture
                 if (genRandom() < OUTPOURCENT) {
-                    currentCar->out = true;
+                    currentCar.out = true;
                 }
                 // test pour stand
-                if ((genRandom() < STANDPOURCENT || ((i == (TURN - 1)) && currentCar->stands == 0)) && j == (SECTION-1)) { // x% de s'arreter ou si jamais arrêter pendant la course
-                    currentCar->in_stands = true;
+                if ((genRandom() < STANDPOURCENT || ((i == (TURN - 1)) && currentCar.stands == 0)) && j == (SECTION-1)) { // x% de s'arreter ou si jamais arrêter pendant la course
+                    currentCar.in_stands = true;
                     int time_in_stands = genRandomStand();
-                    currentCar->circuit[i][SECTION - 1] += time_in_stands;
-                    currentCar->totalTime += time_in_stands;
-                    currentCar->stands++;
-                    currentCar->in_stands = false;
+                    currentCar.circuit[i][SECTION - 1] += time_in_stands;
+                    currentCar.totalTime += time_in_stands;
+                    currentCar.stands++;
+                    currentCar.in_stands = false;
                 }
-                //sem_post(&semaphore);
+                sem_wait(&semaphore);
+                memcpy(currentCar_ad, &currentCar, sizeof(currentCar));
+                sem_post(&semaphore);
             }
         }
     }
@@ -724,14 +727,14 @@ void circuit_father(int shmid,char* entry){
     // récupération des données de la SM
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
-        //sem_wait(&semaphore);
+        sem_wait(&semaphore);
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
         clrscr();
         showCurrentSect(entry);
         checkBestSect();
         showBestSect();
-        //sem_post(&semaphore);
+        sem_post(&semaphore);
     }while ((wpid = wait(&status)) > 0);
 }
 
@@ -1041,7 +1044,7 @@ int main(int argc, char *argv[]) {
     showWelcome();
     raceLoading();
     //mise en place du sémaphore
-    //sem_init(&semaphore, 0, 1);
+    sem_init(&semaphore, 0, 1);
     // allocation de la mem partagée
     shmid = shmget(KEY, (CAR * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
     if (shmid == -1) {
@@ -1066,7 +1069,7 @@ int main(int argc, char *argv[]) {
     //lunchEssais();
 
     // suppression du semaphore
-    //sem_destroy(&semaphore);
+    sem_destroy(&semaphore);
     // fin de la course
     printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
