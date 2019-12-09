@@ -658,7 +658,7 @@ int choiceTypeOfRun(){
  */
 void setOut(int shmid,int num){
     f1 *mem = (f1 *) shmat(shmid, 0, 0);
-    for(int car = CAR; car > (CAR-(num)); car-- ){
+    for(int car = CAR; car > (CAR-(num+1)); car-- ){
         mem[car].out = true;
     }
 }
@@ -968,6 +968,7 @@ void lunchEssais(){
 void lunchQualif(){
     if(essais < 3){
         printf("please run all the essais before.\n");
+        return;
     }
     if (qualif == 1){ // si qualif deja fait
         printf("You already have done the qualifications for this run \n");
@@ -1008,6 +1009,7 @@ void lunchQualif(){
 void lunchRun(){
     if(essais < 3 || qualif != 1){
         printf("Please run all the essais and qualifications before.\n");
+        return;
     }
     if (course == 1){ // si course déja fait
         printf("You already have done the run \n");
@@ -1066,7 +1068,6 @@ int main(int argc, char *argv[]) {
     else if (choice_type == 3){
         lunchRun();
     }
-    //lunchEssais();
 
     // suppression du semaphore
     sem_destroy(&semaphore);
