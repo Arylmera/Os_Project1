@@ -943,19 +943,20 @@ void raceLoading(){
 void lunchEssais(){
     if(essais == 3){ // si tout les essais ont déja ete fait
         printf("You already have done all the essais for this run \n");
-        return;
     }
-    char essais_name[12];
-    sprintf(essais_name,"Essais-%d",(essais+1));
-    gen_circuit(shmid,essais_name); // génération de la course
-    bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
-    clrscr(); // clear de la console
-    showRun(); // affichage des stats globales des voitures
-    showCurrentSect(essais_name); // affichages des meilleurs sections par voiture
-    showBestSect(); // affichage des meilleurs temps par secteurs
-    showRunTotal(1); // affichage récapitulatif avec bannière
+    else {
+        char essais_name[12];
+        sprintf(essais_name, "Essais-%d", (essais + 1));
+        gen_circuit(shmid, essais_name); // génération de la course
+        bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
+        clrscr(); // clear de la console
+        showRun(); // affichage des stats globales des voitures
+        showCurrentSect(essais_name); // affichages des meilleurs sections par voiture
+        showBestSect(); // affichage des meilleurs temps par secteurs
+        showRunTotal(1); // affichage récapitulatif avec bannière
 
-    essais += 1;
+        essais += 1;
+    }
     // génération du fichier de résultats
     char* result_name = essais_name;
     outputFile(essais_name);
@@ -968,35 +969,35 @@ void lunchEssais(){
 void lunchQualif(){
     if(essais < 3){
         printf("please run all the essais before.\n");
-        return;
     }
-    if (qualif == 1){ // si qualif deja fait
+    else if (qualif == 1){ // si qualif deja fait
         printf("You already have done the qualifications for this run \n");
-        return;
     }
-    // gestion des qualif
-    // Q1
-    gen_circuit(shmid,"Qualif -- Q1");
-    bubbleSortCarList();
-    setOut(shmid,5); // 5 dernières OUT
-    // Q2
-    resetTimeCar();
-    gen_circuit(shmid,"Qualif -- Q2");
-    bubbleSortCarList();
-    setOut(shmid,10); // 10 dernières OUT
-    // Q3
-    resetTimeCar();
-    gen_circuit(shmid,"Qualif -- Q3");
-    bubbleSortCarList();
-    // affichage final
-    bubbleSortCarList();
-    clrscr(); // clear de la console
-    showRun(); // affichage des stats globales des voitures
-    showCurrentSect("Qualif"); // affichages des meilleurs sections par voiture
-    showBestSect(); // affichage des meilleurs temps par secteurs
-    showRunTotal(1); // affichage récapitulatif avec bannière
+    else {
+        // gestion des qualif
+        // Q1
+        gen_circuit(shmid, "Qualif -- Q1");
+        bubbleSortCarList();
+        setOut(shmid, 5); // 5 dernières OUT
+        // Q2
+        resetTimeCar();
+        gen_circuit(shmid, "Qualif -- Q2");
+        bubbleSortCarList();
+        setOut(shmid, 10); // 10 dernières OUT
+        // Q3
+        resetTimeCar();
+        gen_circuit(shmid, "Qualif -- Q3");
+        bubbleSortCarList();
+        // affichage final
+        bubbleSortCarList();
+        clrscr(); // clear de la console
+        showRun(); // affichage des stats globales des voitures
+        showCurrentSect("Qualif"); // affichages des meilleurs sections par voiture
+        showBestSect(); // affichage des meilleurs temps par secteurs
+        showRunTotal(1); // affichage récapitulatif avec bannière
 
-    qualif += 1;
+        qualif += 1;
+    }
     // génération du fichier de résultats
     char* result_name = "Qualif";
     outputFile(result_name);
@@ -1011,20 +1012,22 @@ void lunchRun(){
         printf("Please run all the essais and qualifications before.\n");
         return;
     }
-    if (course == 1){ // si course déja fait
+    else if (course == 1){ // si course déja fait
         printf("You already have done the run \n");
         return;
     }
-    // gestion de la course
-    gen_circuit(shmid,"Course"); // génération de la course
-    bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
-    clrscr(); // clear de la console
-    showRun(); // affichage des stats globales des voitures
-    showCurrentSect("Course"); // affichages des meilleurs sections par voiture
-    showBestSect(); // affichage des meilleurs temps par secteurs
-    showRunTotal(1); // affichage récapitulatif avec bannière
+    else {
+        // gestion de la course
+        gen_circuit(shmid, "Course"); // génération de la course
+        bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
+        clrscr(); // clear de la console
+        showRun(); // affichage des stats globales des voitures
+        showCurrentSect("Course"); // affichages des meilleurs sections par voiture
+        showBestSect(); // affichage des meilleurs temps par secteurs
+        showRunTotal(1); // affichage récapitulatif avec bannière
 
-    course +=1;
+        course += 1;
+    }
     // génération du fichier de résultats
     char* result_name = "Course";
     outputFile(result_name);
