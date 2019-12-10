@@ -511,7 +511,7 @@ void checkBestSect(){
     for (int turn = 0; turn < TURN; turn++) {
         for (int sec = 0; sec < SECTION; sec++) {
             for (int car = 0; car < CAR; car++) {
-                if (best_sect_time[sec] > carList[car].circuit[turn][sec] || best_sect_time[sec] == 0) {
+                if ((best_sect_time[sec] > carList[car].circuit[turn][sec] || best_sect_time[sec] == 0) && carList[car].circuit[turn][sec] != 0) {
                     best_sect_time[sec] = carList[car].circuit[turn][sec];
                 }
             }
@@ -522,6 +522,7 @@ void checkBestSect(){
 /***********************************************************************************************************************
  *                               fonctions Gestion des fichiers
  **********************************************************************************************************************/
+
 /**
  * output des données dans le fichier prévus pour la lecture depuis l'utilisateur
  */
@@ -674,41 +675,40 @@ void circuit_son(int shmid,int carPosition){
     int carNumber = carListNumber[carPosition];
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     printf("Départ de la voiture %d\n",carNumber);
-    f1 currentCar = init_car(carNumber);
-    f1 *currentCar_ad;
+    f1 *currentCar;
     srand(time(NULL)+getpid()); // génération du nouveau random pour chaque fils
     for(int i = 0; i < CAR; i++){
         if(output[i].number == carNumber){
-            currentCar_ad = &output[i];
-            memcpy(&currentCar, &output[i], sizeof(output[i]));
+            currentCar = &output[i];
             break;
         }
     }
     for(int i = 0; i < TURN ; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
-            if (currentCar.out){
-                currentCar.circuit[i][j] = 0;
+            if (currentCar->out){
+                currentCar->circuit[i][j] = 0;
             }
             else {
                 int section_time = genSection();
-                currentCar.circuit[i][j] = section_time;
-                currentCar.currrent_section[j] = section_time;
-                currentCar.totalTime += section_time;
+                // écriture dans la mem
+                sem_wait(&semaphore);
+                currentCar->circuit[i][j] = section_time;
+                currentCar->currrent_section[j] = section_time;
+                currentCar->totalTime += section_time;
                 // test random out de la voiture
                 if (genRandom() < OUTPOURCENT) {
-                    currentCar.out = true;
+                    currentCar->out = true;
                 }
                 // test pour stand
-                if ((genRandom() < STANDPOURCENT || ((i == (TURN - 1)) && currentCar.stands == 0)) && j == (SECTION-1)) { // x% de s'arreter ou si jamais arrêter pendant la course
-                    currentCar.in_stands = true;
+                if ((genRandom() < STANDPOURCENT || ((i == (TURN - 1)) && currentCar->stands == 0)) && j == (SECTION-1)) { // x% de s'arreter ou si jamais arrêter pendant la course
+                    currentCar->in_stands = true;
                     int time_in_stands = genRandomStand();
-                    currentCar.circuit[i][SECTION - 1] += time_in_stands;
-                    currentCar.totalTime += time_in_stands;
-                    currentCar.stands++;
-                    currentCar.in_stands = false;
+                    currentCar->circuit[i][SECTION - 1] += time_in_stands;
+                    currentCar->totalTime += time_in_stands;
+                    currentCar->stands++;
+                    currentCar->in_stands = false;
                 }
-                sem_wait(&semaphore);
-                memcpy(currentCar_ad, &currentCar, sizeof(currentCar));
+                //fin
                 sem_post(&semaphore);
             }
         }
@@ -941,12 +941,12 @@ void raceLoading(){
  * Gestion des essais d'un course
  */
 void lunchEssais(){
-    if(essais == 3){ // si tout les essais ont déja ete fait
+    char essais_name[12];
+    sprintf(essais_name, "Essais-%d", (essais + 1));
+    if(essais >= 3){ // si tout les essais ont déja ete fait
         printf("You already have done all the essais for this run \n");
     }
     else {
-        char essais_name[12];
-        sprintf(essais_name, "Essais-%d", (essais + 1));
         gen_circuit(shmid, essais_name); // génération de la course
         bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
         clrscr(); // clear de la console
