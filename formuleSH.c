@@ -46,7 +46,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
-#define SLEEPDIVISER 20
+#define SLEEPDIVISER 10
 #define PATH_SIZE 1024
 #define MAXCHAR 256
 
@@ -75,10 +75,10 @@ char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
 int best_sect_time[SECTION];
 
-sem_t* semaphore[CAR]; // déclatration des semaphores des voitures
-sem_t* sem_parent; // déclatration du sémaphore parent
-sem_t* sem_fils_door;
+sem_t* sem_parent;
+sem_t* sem_fils;
 int sem_car_pos = 0;
+int car_finished = 0;
 
 const char * part_separator = "$";
 const char * data_separator = "!";
@@ -186,18 +186,26 @@ int genRandom(){
 }
 
 /**
+ * singal process killed
+ */
+void processKilled(){
+    printf("end\n");
+}
+
+/**
  * gestion des tours d essais des voitures
  * @param shmid id de la memoire partagée
  *        entry est le type de la course
  * @return -1 if error else 0
  */
 int gen_circuit(int shmid,char* entry){
+    // mise en place des signaux
+    signal(SIGINT, processKilled);
     //mise en place du sémaphore
-    for(int sem = 0; sem < CAR; sem++) {
-        sem_init(semaphore[sem], 1, 1); // ouvert et partagé
-    }
-    sem_init(sem_parent,1 ,0); // bloqué et partagé
-    sem_init(sem_fils_door,1 ,1); // ouvert et partagé
+    sem_parent = sem_open("semP", O_CREAT | O_EXCL, 0644, 0);
+    sem_fils = sem_open("semN", O_CREAT | O_EXCL, 0644, 1);
+
+    car_finished = 0;
     for (int car = 0; car < CAR; car++) {
         int pid = fork();
         if (pid < 0) {
@@ -213,11 +221,11 @@ int gen_circuit(int shmid,char* entry){
     /* Parent */
     circuit_father(shmid,entry);
     // suppression du semaphore
-    for(int sem = 0; sem < CAR; sem++) {
-        sem_destroy(semaphore[sem]);
-    }
-    sem_destroy(sem_parent);
-    sem_destroy(sem_fils_door);
+    sem_unlink ("semP");
+    sem_unlink ("semN");
+
+    sem_close(sem_parent);
+    sem_close(sem_fils);
     return 0;
 }
 
@@ -279,6 +287,13 @@ void getDir(char* dir_name){
 void clrscr(){
     system("clear");
     printf ("\33c\e[3J");
+}
+
+/**
+ * réécriture sur ce qui est déjà en console
+ */
+void softClr(){
+    printf ("\033[;H");
 }
 
 /**
@@ -700,10 +715,11 @@ void circuit_son(int shmid,int carPosition){
     }
     for(int i = 0; i < TURN ; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
-            if (currentCar->out){
+            //printf("section critique du fils %d\n",carNumber);
+            if (currentCar->out){ // sila voiture est out
                 currentCar->circuit[i][j] = 0;
             }
-            else {
+            else { // si la voiture est encore en course
                 int section_time = genSection();
                 // écriture dans la mem
                 currentCar->circuit[i][j] = section_time;
@@ -723,16 +739,20 @@ void circuit_son(int shmid,int carPosition){
                     currentCar->in_stands = false;
                 }
                 //fin
-
-                // gestion des semaphores
-                sem_wait(sem_fils_door);
-                sem_car_pos = carPosition;
-                sem_post(sem_parent);
-                sem_wait(semaphore[carPosition]);
             }
+            // gestion des semaphores
+            //printf(RED"fils %d bloqué\n"RESET,carPosition);
+            sem_wait(sem_fils);
+            //printf(GRN"fils %d entée \n"RESET,carPosition);
+            sem_car_pos = carPosition;
+            //printf(YEL"libération du père || carPosion = %d\n"RESET,carPosition);
+            sem_post(sem_parent);
         }
     }
-    sem_post(sem_parent);
+    car_finished++;
+    if (car_finished == CAR){
+        kill(getppid(), SIGKILL);
+    }
     exit(EXIT_SUCCESS);
 }
 
@@ -744,21 +764,26 @@ void circuit_son(int shmid,int carPosition){
 void circuit_father(int shmid,char* entry){
     int status = 0;
     pid_t wpid;
+    clrscr();
     // récupération des données de la SM
+    clrscr();
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
+        // sc du pere
+        //printf(YEL"section critique du pere -- Voiture %d\n"RESET,sem_car_pos);
+        f1 *car_imput = &input[sem_car_pos];
+        f1 *car_list_pos = &carList[sem_car_pos];
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
-        clrscr();
+        softClr();
         showCurrentSect(entry);
         checkBestSect();
         showBestSect();
-
-        // gestion des semaphores
-        sem_post(sem_fils_door);
-        sem_post(semaphore[sem_car_pos]);
+        // semaphore
+        sem_post(sem_fils);
+        //printf(GRN"libération du fils %d depuis le pere\n"RESET,sem_car_pos);
         sem_wait(sem_parent);
-    }while ((wpid = wait(&status)) > 0);
+    }while(1);     //(wpid = wait(&status)) > 0);
 }
 
 /***********************************************************************************************************************
@@ -1072,7 +1097,7 @@ int main(int argc, char *argv[]) {
     showWelcome();
     raceLoading();
     // allocation de la mem partagée
-    shmid = shmget(KEY, (CAR * sizeof(f1)), 0666 | IPC_CREAT); // 0775 || user = 7 | groupe = 7 | other = 5
+    shmid = shmget(KEY, (CAR * sizeof(f1)), 0666 | IPC_CREAT);
     if (shmid == -1) {
         perror(RED"ERROR in creation of the Shared Memory"RESET);
         printf("\n");
