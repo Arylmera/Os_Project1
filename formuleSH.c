@@ -206,6 +206,7 @@ int gen_circuit(int shmid,char* entry){
     sem_fils = sem_open("semN", O_CREAT | O_EXCL, 0644, 1);
 
     car_finished = 0;
+    int ppid = getppid();
     for (int car = 0; car < CAR; car++) {
         int pid = fork();
         if (pid < 0) {
@@ -749,8 +750,9 @@ void circuit_son(int shmid,int carPosition){
             sem_post(sem_parent);
         }
     }
-    car_finished++;
-    if (car_finished == CAR){
+    car_finished += 1;
+    if (car_finished >= CAR){
+        //kill(getppid(), SIGKILL);
         kill(getppid(), SIGKILL);
     }
     exit(EXIT_SUCCESS);
@@ -763,7 +765,7 @@ void circuit_son(int shmid,int carPosition){
  */
 void circuit_father(int shmid,char* entry){
     int status = 0;
-    pid_t wpid;
+    int wait_int;
     clrscr();
     // récupération des données de la SM
     clrscr();
