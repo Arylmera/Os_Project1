@@ -70,6 +70,7 @@ f1 carList[CAR];
 FILE * file;
 FILE * logFile;
 int shmid;
+int shmid_fsh;
 char path[(PATH_SIZE/2)+50];
 char dir_path[(PATH_SIZE/2)+50];
 char race_name[50];
@@ -77,8 +78,6 @@ int best_sect_time[SECTION];
 
 sem_t* sem_parent;
 sem_t* sem_fils;
-int sem_car_pos = 0;
-int car_finished = 0;
 
 const char * part_separator = "$";
 const char * data_separator = "!";
@@ -87,8 +86,8 @@ int essais = 0;
 int qualif = 0;
 int course = 0;
 
-void circuit_son(int shmid,int carPosition);
-void circuit_father(int shmid,char* entry);
+void circuit_son(int shmid,int shmid_fsh,int carPosition);
+void circuit_father(int shmid,int shmid_fsh,char* entry);
 
 /***********************************************************************************************************************
  *                               fonctions initalisation
@@ -199,14 +198,13 @@ void processKilled(){
  * @return -1 if error else 0
  */
 int gen_circuit(int shmid,char* entry){
-    // mise en place des signaux
-    signal(SIGINT, processKilled);
     //mise en place du sémaphore
     sem_parent = sem_open("semP", O_CREAT | O_EXCL, 0644, 0);
     sem_fils = sem_open("semN", O_CREAT | O_EXCL, 0644, 1);
-
-    car_finished = 0;
-    int ppid = getppid();
+    // shmem
+    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
+    car_finished[0] = 0;
+    //fork
     for (int car = 0; car < CAR; car++) {
         int pid = fork();
         if (pid < 0) {
@@ -216,11 +214,11 @@ int gen_circuit(int shmid,char* entry){
         }
             /* Son */
         else if (pid == 0) {
-            circuit_son(shmid,car);
+            circuit_son(shmid,shmid_fsh,car);
         }
     }
     /* Parent */
-    circuit_father(shmid,entry);
+    circuit_father(shmid,shmid_fsh,entry);
     // suppression du semaphore
     sem_unlink ("semP");
     sem_unlink ("semN");
@@ -702,10 +700,10 @@ void setOut(int shmid,int num){
 /**
  * fonction du code du fils (voiture)
  */
-void circuit_son(int shmid,int carPosition){
+void circuit_son(int shmid,int shmid_fsh,int carPosition){
     int carNumber = carListNumber[carPosition];
     f1 *output = (f1 *) shmat(shmid, 0, 0);
-    printf("Départ de la voiture %d\n",carNumber);
+    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
     f1 *currentCar;
     srand(time(NULL)+getpid()); // génération du nouveau random pour chaque fils
     for(int i = 0; i < CAR; i++){ // récupération de l'entrée en shmem
@@ -716,7 +714,6 @@ void circuit_son(int shmid,int carPosition){
     }
     for(int i = 0; i < TURN ; i++){ // pour chaque tour
         for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
-            //printf("section critique du fils %d\n",carNumber);
             if (currentCar->out){ // sila voiture est out
                 currentCar->circuit[i][j] = 0;
             }
@@ -726,8 +723,7 @@ void circuit_son(int shmid,int carPosition){
                 currentCar->circuit[i][j] = section_time;
                 currentCar->currrent_section[j] = section_time;
                 currentCar->totalTime += section_time;
-                // test random out de la voiture
-                if (genRandom() < OUTPOURCENT) {
+                if (genRandom() < OUTPOURCENT) { // test random out de la voiture
                     currentCar->out = true;
                 }
                 // test pour stand
@@ -742,18 +738,13 @@ void circuit_son(int shmid,int carPosition){
                 //fin
             }
             // gestion des semaphores
-            //printf(RED"fils %d bloqué\n"RESET,carPosition);
             sem_wait(sem_fils);
-            //printf(GRN"fils %d entée \n"RESET,carPosition);
-            sem_car_pos = carPosition;
-            //printf(YEL"libération du père || carPosion = %d\n"RESET,carPosition);
             sem_post(sem_parent);
         }
     }
-    car_finished += 1;
-    if (car_finished >= CAR){
-        //kill(getppid(), SIGKILL);
-        kill(getppid(), SIGKILL);
+    car_finished[0]++;
+    if (car_finished[0] == CAR) {
+        sem_post(sem_parent);
     }
     exit(EXIT_SUCCESS);
 }
@@ -763,29 +754,23 @@ void circuit_son(int shmid,int carPosition){
  * @param shmid id de la memoire partagée
  * @param entry type de la course
  */
-void circuit_father(int shmid,char* entry){
-    int status = 0;
-    int wait_int;
-    clrscr();
+void circuit_father(int shmid,int shmid_fsh,char* entry){
+    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
     // récupération des données de la SM
-    clrscr();
+    //clrscr();
     f1 *input = (f1*) shmat(shmid,0,0);
     do{ // temps que un processus est en cours
-        // sc du pere
-        //printf(YEL"section critique du pere -- Voiture %d\n"RESET,sem_car_pos);
-        f1 *car_imput = &input[sem_car_pos];
-        f1 *car_list_pos = &carList[sem_car_pos];
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
         softClr();
+        //clrscr();
         showCurrentSect(entry);
         checkBestSect();
         showBestSect();
         // semaphore
         sem_post(sem_fils);
-        //printf(GRN"libération du fils %d depuis le pere\n"RESET,sem_car_pos);
         sem_wait(sem_parent);
-    }while(1);     //(wpid = wait(&status)) > 0);
+    }while(car_finished[0] != CAR);
 }
 
 /***********************************************************************************************************************
@@ -1026,15 +1011,18 @@ void lunchQualif(){
     else {
         // gestion des qualif
         // Q1
+        clrscr();
         gen_circuit(shmid, "Qualif -- Q1");
         bubbleSortCarList();
         setOut(shmid, 5); // 5 dernières OUT
         // Q2
+        clrscr();
         resetTimeCar();
         gen_circuit(shmid, "Qualif -- Q2");
         bubbleSortCarList();
         setOut(shmid, 10); // 10 dernières OUT
         // Q3
+        clrscr();
         resetTimeCar();
         gen_circuit(shmid, "Qualif -- Q3");
         bubbleSortCarList();
@@ -1106,8 +1094,15 @@ int main(int argc, char *argv[]) {
         shmctl(shmid, IPC_RMID, NULL); // suppression de la memoire partagée
         return 1;
     }
+    shmid_fsh = shmget(KEY+1, sizeof(int), 0666 | IPC_CREAT);
+    if (shmid_fsh == -1) {
+        perror(RED"ERROR in creation of the Shared Memory"RESET);
+        printf("\n");
+        shmctl(shmid_fsh, IPC_RMID, NULL); // suppression de la memoire partagée
+        return 1;
+    }
+    // init memory
     init_mem(shmid);
-
     // gestion du circuit
     int choice_type = choiceTypeOfRun();
     if (choice_type == 1) {
@@ -1121,8 +1116,8 @@ int main(int argc, char *argv[]) {
     }
 
     // fin de la course
-    printf("fin des tours \n");
     shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
+    shmctl(shmid_fsh, IPC_RMID, NULL);
     return 0; // fin du programme
 }
 
