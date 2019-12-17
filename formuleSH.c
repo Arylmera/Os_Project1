@@ -63,6 +63,7 @@ typedef struct {
 
     int circuit[TURN][SECTION];
     int currrent_section[SECTION];
+    int best_section[SECTION];
 } f1;
 
 int carListNumber[CAR] = {7, 99, 5, 16, 8, 20, 4, 55, 10, 26, 44, 77, 11, 18, 23, 33, 3, 27, 63, 88};
@@ -86,7 +87,7 @@ int essais = 0;
 int qualif = 0;
 int course = 0;
 
-void circuit_son(int shmid,int shmid_fsh,int carPosition);
+void circuit_son(int shmid,int shmid_fsh,int carPosition,int time_lenght);
 void circuit_father(int shmid,int shmid_fsh,char* entry);
 
 /***********************************************************************************************************************
@@ -106,6 +107,7 @@ f1 init_car(int carNumber){
     tmp.totalTime = 0;
     memset(tmp.circuit, 0, sizeof(tmp.circuit));
     memset(tmp.currrent_section, 0, sizeof(tmp.currrent_section));
+    memset(tmp.best_section, 0, sizeof(tmp.best_section));
     return tmp;
 }
 
@@ -122,6 +124,7 @@ void init_car_list(int *carListNumber){
         carList[i].totalTime = 0;
         memset(carList[i].circuit, 0, sizeof(carList[i].circuit));
         memset(carList[i].currrent_section, 0, sizeof(carList[i].currrent_section));
+        memset(carList[i].best_section, 0, sizeof(carList[i].best_section));
     }
 }
 
@@ -147,6 +150,7 @@ void resetTimeCar(){
         mem[i].totalTime = 0;
         memset(mem[i].circuit, 0, sizeof(mem[i].circuit));
         memset(mem[i].currrent_section, 0, sizeof(mem[i].currrent_section));
+        memset(mem[i].best_section, 0, sizeof(mem[i].best_section));
     }
     memset(best_sect_time,0,sizeof(best_sect_time));
 }
@@ -188,15 +192,25 @@ int genRandom(){
  * gestion des tours d essais des voitures
  * @param shmid id de la memoire partagée
  *        entry est le type de la course
+ *        bool true si limite de temps, false si course
  * @return -1 if error else 0
  */
-int gen_circuit(int shmid,char* entry){
+int gen_circuit(int shmid,char* entry, bool time){
     //mise en place du sémaphore
     sem_parent = sem_open("semP", O_CREAT | O_EXCL, 0644, 0);
     sem_fils = sem_open("semN", O_CREAT | O_EXCL, 0644, 1);
     // shmem
     int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
     car_finished[0] = 0;
+    // time
+    int time_lenght = -1;
+    char time_string[10];
+    if (time){
+        printf(MAG"For how long does the cars have to run (in seconds)? \n"RESET);
+        scanf("%s",time_string);
+        time_lenght = (int) atoi(time_string);
+        printf(MAG"Let's make the cars run for %d sec \n\t if a section is start they will before finish it then come back to the stand... \n"RESET,time_lenght);
+    }
     //fork
     for (int car = 0; car < CAR; car++) {
         int pid = fork();
@@ -207,7 +221,7 @@ int gen_circuit(int shmid,char* entry){
         }
             /* Son */
         else if (pid == 0) {
-            circuit_son(shmid,shmid_fsh,car);
+            circuit_son(shmid,shmid_fsh,car,time_lenght);
         }
     }
     /* Parent */
@@ -530,12 +544,21 @@ bool useDefaultCarList(){
  * check des best temps aux secteurs
  */
 void checkBestSect(){
+    /**
     for (int turn = 0; turn < TURN; turn++) {
         for (int sec = 0; sec < SECTION; sec++) {
             for (int car = 0; car < CAR; car++) {
                 if ((best_sect_time[sec] > carList[car].circuit[turn][sec] || best_sect_time[sec] == 0) && carList[car].circuit[turn][sec] != 0) {
                     best_sect_time[sec] = carList[car].circuit[turn][sec];
                 }
+            }
+        }
+    }
+    */
+    for(int sec = 0; sec < SECTION; sec++){
+        for(int car = 0; car < CAR; car ++){
+            if ((best_sect_time[sec] > carList[car].best_section[sec] || best_sect_time[sec] == 0)&& carList[car].best_section[sec] != 0 ){
+                best_sect_time[sec] = carList[car].best_section[sec];
             }
         }
     }
@@ -547,8 +570,9 @@ void checkBestSect(){
 
 /**
  * output des données dans le fichier prévus pour la lecture depuis l'utilisateur
+ * @param all , true si tout aficher pour 3 tours 3 sect
  */
-void outputData(){
+void outputData(bool all){
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"                                            Tableau des Résultats                                              \n");
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
@@ -560,49 +584,57 @@ void outputData(){
                 carList[car].totalTime);
     }
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n" );
-    fprintf(file,"                                                 Tableau des Secteurs                                          \n" );
+    fprintf(file,"                            Tableau des Meilleurs temps par Secteurs par voiture                               \n" );
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     for(int car = 0; car < CAR; car++){
         fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
         fprintf(file,"Voiture %3d || S1 : %3d | S2 : %3d | S3 : %3d |--| Total : %4d\n",
                 carList[car].number,
-                carList[car].currrent_section[0],
-                carList[car].currrent_section[1],
-                carList[car].currrent_section[2],
+                carList[car].best_section[0],
+                carList[car].best_section[1],
+                carList[car].best_section[2],
                 carList[car].totalTime);
     }
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    fprintf(file,"                                          Best Time For Secteurs                                               \n");
+    fprintf(file,"                                         Meilleurs temps de Secteurs                                           \n");
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     fprintf(file,"Best Secteurs Globaux |-| S1 : %3d || S2 : %3d || S3 : %3d |-|\n",
             best_sect_time[0],
             best_sect_time[1],
             best_sect_time[2]);
     fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    fprintf(file,"                                       Tableau des Récapitulatif                                               \n");
-    fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
-    for (int turn = 0; turn < TURN; turn++){
-        for(int car = 0; car < CAR; car++){
-            fprintf(file,"Voiture %3d || turn : %1d || S1 : %2d | S2 : %2d | S3 : %2d  || Status : %c | Stands stop : %2d ||Total Turn : %3d \n",
-                    carList[car].number,
-                    turn+1,
-                    carList[car].circuit[turn][0],
-                    carList[car].circuit[turn][1],
-                    carList[car].circuit[turn][2],
-                    status(carList[car].in_stands,carList[car].out),
-                    carList[car].stands,
-                    carList[car].circuit[turn][0]+carList[car].circuit[turn][1]+carList[car].circuit[turn][2]);
+    if (all) {
+        fprintf(file,
+                "---------------------------------------------------------------------------------------------------------------\n");
+        fprintf(file,
+                "                                       Tableau des Récapitulatif                                               \n");
+        fprintf(file,
+                "---------------------------------------------------------------------------------------------------------------\n");
+        for (int turn = 0; turn < TURN; turn++) {
+            for (int car = 0; car < CAR; car++) {
+                fprintf(file,
+                        "Voiture %3d || turn : %1d || S1 : %2d | S2 : %2d | S3 : %2d  || Status : %c | Stands stop : %2d ||Total Turn : %3d \n",
+                        carList[car].number,
+                        turn + 1,
+                        carList[car].circuit[turn][0],
+                        carList[car].circuit[turn][1],
+                        carList[car].circuit[turn][2],
+                        status(carList[car].in_stands, carList[car].out),
+                        carList[car].stands,
+                        carList[car].circuit[turn][0] + carList[car].circuit[turn][1] + carList[car].circuit[turn][2]);
+            }
+            fprintf(file,
+                    "---------------------------------------------------------------------------------------------------------------\n");
         }
-        fprintf(file,"---------------------------------------------------------------------------------------------------------------\n");
     }
 }
 
 /**
  * écriture dans le fichier sur base du nom des résultats globaux
  * @param result_name nom du fichier de résulat sur base du nom de la course
+ *        all , true si tout aficher pour 3 tours 3 secteurs
  */
-void outputFile(char* result_name){
+void outputFile(char* result_name, bool all){
     char result_file_path[PATH_SIZE];
     getDir(race_name);
     printf(RED"current path : %s \n"RESET,path);
@@ -615,7 +647,7 @@ void outputFile(char* result_name){
     //ouverture du fichier
     printf("ecriture des résultats à : "GRN"%s \n"RESET,result_file_path);
     file = fopen(result_file_path,"w");
-    outputData();
+    outputData(all);
     //fermeture du fichier
     fclose(file);
 }
@@ -693,7 +725,7 @@ void setOut(int shmid,int num){
 /**
  * fonction du code du fils (voiture)
  */
-void circuit_son(int shmid,int shmid_fsh,int carPosition){
+void circuit_son(int shmid,int shmid_fsh,int carPosition,int time_lenght){
     int carNumber = carListNumber[carPosition];
     f1 *output = (f1 *) shmat(shmid, 0, 0);
     int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
@@ -705,16 +737,23 @@ void circuit_son(int shmid,int shmid_fsh,int carPosition){
             break;
         }
     }
-    for(int i = 0; i < TURN ; i++){ // pour chaque tour
-        for(int j = 0; j < SECTION; j++) { // pour chaque section du tour
-            if (currentCar->out){ // sila voiture est out
+    // gestion variables temps
+    bool end = false;
+    // début tours
+    for(int i = 0; i < TURN && !end; i++){ // pour chaque tour
+        for(int j = 0; j < SECTION && !end; j++) { // pour chaque section du tour
+            if (currentCar->out){ // si la voiture est out
                 currentCar->circuit[i][j] = 0;
+                end = true;
             }
             else { // si la voiture est encore en course
                 int section_time = genSection();
                 // écriture dans la mem
                 currentCar->circuit[i][j] = section_time;
                 currentCar->currrent_section[j] = section_time;
+                if (section_time < currentCar->best_section[j] || currentCar->best_section[j] == 0){
+                    currentCar->best_section[j] = section_time;
+                }
                 currentCar->totalTime += section_time;
                 if (genRandom() < OUTPOURCENT) { // test random out de la voiture
                     currentCar->out = true;
@@ -730,9 +769,16 @@ void circuit_son(int shmid,int shmid_fsh,int carPosition){
                 }
                 //fin
             }
+            if (currentCar->totalTime >= time_lenght && time_lenght != -1){
+                // temps impartit attend
+                end = true;
+            }
             // gestion des semaphores
             sem_wait(sem_fils);
             sem_post(sem_parent);
+        }
+        if (i == 2 && time_lenght != -1){ // si on a défini un temps et non un nombre de tour et que on est au 3e tour
+            i = 0;
         }
     }
     car_finished[0]++;
@@ -750,6 +796,7 @@ void circuit_son(int shmid,int shmid_fsh,int carPosition){
 void circuit_father(int shmid,int shmid_fsh,char* entry){
     f1 *input = (f1*) shmat(shmid,0,0);
     int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
+    clrscr();
     do{ // temps que un processus est en cours
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
@@ -972,19 +1019,19 @@ void lunchEssais(){
         printf("You already have done all the essais for this run \n");
     }
     else {
-        gen_circuit(shmid, essais_name); // génération de la course
+        gen_circuit(shmid, essais_name, true); // génération de la course
         bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
         clrscr(); // clear de la console
         showRun(); // affichage des stats globales des voitures
         showCurrentSect(essais_name); // affichages des meilleurs sections par voiture
         showBestSect(); // affichage des meilleurs temps par secteurs
-        showRunTotal(1); // affichage récapitulatif avec bannière
+        //showRunTotal(1); // affichage récapitulatif avec bannière
 
         essais += 1;
     }
     // génération du fichier de résultats
     char* result_name = essais_name;
-    outputFile(essais_name);
+    outputFile(essais_name, false);
     genLog();
 }
 
@@ -1002,19 +1049,19 @@ void lunchQualif(){
         // gestion des qualif
         // Q1
         clrscr();
-        gen_circuit(shmid, "Qualif -- Q1");
+        gen_circuit(shmid, "Qualif -- Q1", false);
         bubbleSortCarList();
         setOut(shmid, 5); // 5 dernières OUT
         // Q2
         clrscr();
         resetTimeCar();
-        gen_circuit(shmid, "Qualif -- Q2");
+        gen_circuit(shmid, "Qualif -- Q2", false);
         bubbleSortCarList();
         setOut(shmid, 10); // 10 dernières OUT
         // Q3
         clrscr();
         resetTimeCar();
-        gen_circuit(shmid, "Qualif -- Q3");
+        gen_circuit(shmid, "Qualif -- Q3", false);
         bubbleSortCarList();
         // affichage final
         bubbleSortCarList();
@@ -1028,7 +1075,7 @@ void lunchQualif(){
     }
     // génération du fichier de résultats
     char* result_name = "Qualif";
-    outputFile(result_name);
+    outputFile(result_name, true);
     genLog();
 }
 
@@ -1046,7 +1093,7 @@ void lunchRun(){
     }
     else {
         // gestion de la course
-        gen_circuit(shmid, "Course"); // génération de la course
+        gen_circuit(shmid, "Course", false); // génération de la course
         bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
         clrscr(); // clear de la console
         showRun(); // affichage des stats globales des voitures
@@ -1058,7 +1105,7 @@ void lunchRun(){
     }
     // génération du fichier de résultats
     char* result_name = "Course";
-    outputFile(result_name);
+    outputFile(result_name, true);
     genLog();
 }
 
@@ -1082,14 +1129,14 @@ int main(int argc, char *argv[]) {
         perror(RED"ERROR in creation of the Shared Memory"RESET);
         printf("\n");
         shmctl(shmid, IPC_RMID, NULL); // suppression de la memoire partagée
-        return 1;
+        return -1;
     }
     shmid_fsh = shmget(KEY+1, sizeof(int), 0666 | IPC_CREAT);
     if (shmid_fsh == -1) {
         perror(RED"ERROR in creation of the Shared Memory"RESET);
         printf("\n");
         shmctl(shmid_fsh, IPC_RMID, NULL); // suppression de la memoire partagée
-        return 1;
+        return -1;
     }
     // init memory
     init_mem(shmid);
