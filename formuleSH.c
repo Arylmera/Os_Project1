@@ -185,13 +185,6 @@ int genRandom(){
 }
 
 /**
- * singal process killed
- */
-void processKilled(){
-    printf("end\n");
-}
-
-/**
  * gestion des tours d essais des voitures
  * @param shmid id de la memoire partagée
  *        entry est le type de la course
@@ -755,21 +748,18 @@ void circuit_son(int shmid,int shmid_fsh,int carPosition){
  * @param entry type de la course
  */
 void circuit_father(int shmid,int shmid_fsh,char* entry){
-    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
-    // récupération des données de la SM
-    //clrscr();
     f1 *input = (f1*) shmat(shmid,0,0);
+    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
     do{ // temps que un processus est en cours
         memcpy(carList, input, sizeof(carList));
         bubbleSortCarList();
         softClr();
-        //clrscr();
         showCurrentSect(entry);
         checkBestSect();
         showBestSect();
         // semaphore
-        sem_post(sem_fils);
         sem_wait(sem_parent);
+        sem_post(sem_fils);
     }while(car_finished[0] != CAR);
 }
 
