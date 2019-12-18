@@ -46,7 +46,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
-#define SLEEPDIVISER 50
+#define SLEEPDIVISER 10
 #define PATH_SIZE 1024
 #define MAXCHAR 256
 
