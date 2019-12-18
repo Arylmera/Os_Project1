@@ -46,7 +46,7 @@
 #define KEY 666
 #define STANDPOURCENT 25
 #define OUTPOURCENT 2
-#define SLEEPDIVISER 10
+#define SLEEPDIVISER 50
 #define PATH_SIZE 1024
 #define MAXCHAR 256
 
@@ -131,12 +131,17 @@ void init_car_list(int *carListNumber){
 /**
  * initalisation de la shared memory
  */
-void init_mem(int shmid){
+void init_mem(int shmid,int shmid_fsh){
     memset(best_sect_time,0,sizeof(best_sect_time));
+    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
     f1 *mem = (f1 *) shmat(shmid, 0, 0);
     for(int i = 0; i < CAR; i++){
         mem[i] = init_car(carListNumber[i]);
     }
+    car_finished[0] = 0;
+
+    shmdt(car_finished);
+    shmdt(mem);
 }
 
 /**
@@ -144,6 +149,7 @@ void init_mem(int shmid){
  */
 void resetTimeCar(){
     f1 *mem = (f1 *) shmat(shmid, 0, 0);
+    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
     for(int i = 0; i < CAR; i++){
         mem[i].stands = 0;
         mem[i].in_stands = false;
@@ -153,6 +159,10 @@ void resetTimeCar(){
         memset(mem[i].best_section, 0, sizeof(mem[i].best_section));
     }
     memset(best_sect_time,0,sizeof(best_sect_time));
+    car_finished[0] = 0;
+
+    shmdt(car_finished);
+    shmdt(mem);
 }
 
 /***********************************************************************************************************************
@@ -195,13 +205,10 @@ int genRandom(){
  *        bool true si limite de temps, false si course
  * @return -1 if error else 0
  */
-int gen_circuit(int shmid,char* entry, bool time){
+int gen_circuit(int shmid,int shmid_fsh,char* entry, bool time){
     //mise en place du sémaphore
     sem_parent = sem_open("semP", O_CREAT | O_EXCL, 0644, 0);
     sem_fils = sem_open("semN", O_CREAT | O_EXCL, 0644, 1);
-    // shmem
-    int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
-    car_finished[0] = 0;
     // time
     int time_lenght = -1;
     char time_string[10];
@@ -227,11 +234,10 @@ int gen_circuit(int shmid,char* entry, bool time){
     /* Parent */
     circuit_father(shmid,shmid_fsh,entry);
     // suppression du semaphore
-    sem_unlink ("semP");
-    sem_unlink ("semN");
-
     sem_close(sem_parent);
     sem_close(sem_fils);
+    sem_unlink ("semP");
+    sem_unlink ("semN");
     return 0;
 }
 
@@ -716,6 +722,7 @@ void setOut(int shmid,int num){
     for(int car = CAR; car > (CAR-(num-1)); car-- ){
         mem[car].out = true;
     }
+    shmdt(mem);
 }
 
 /***********************************************************************************************************************
@@ -785,6 +792,10 @@ void circuit_son(int shmid,int shmid_fsh,int carPosition,int time_lenght){
     if (car_finished[0] == CAR) {
         sem_post(sem_parent);
     }
+    sem_close(sem_parent);
+    sem_close(sem_fils);
+    shmdt(car_finished);
+    shmdt(output);
     exit(EXIT_SUCCESS);
 }
 
@@ -794,8 +805,8 @@ void circuit_son(int shmid,int shmid_fsh,int carPosition,int time_lenght){
  * @param entry type de la course
  */
 void circuit_father(int shmid,int shmid_fsh,char* entry){
-    f1 *input = (f1*) shmat(shmid,0,0);
     int *car_finished = (int *) shmat(shmid_fsh, 0, 0);
+    f1 *input = (f1*) shmat(shmid, 0, 0);
     clrscr();
     do{ // temps que un processus est en cours
         memcpy(carList, input, sizeof(carList));
@@ -807,7 +818,11 @@ void circuit_father(int shmid,int shmid_fsh,char* entry){
         // semaphore
         sem_wait(sem_parent);
         sem_post(sem_fils);
-    }while(car_finished[0] != CAR);
+    }while(car_finished[0] < CAR);
+    sem_close(sem_parent);
+    sem_close(sem_fils);
+    shmdt(car_finished);
+    shmdt(input);
 }
 
 /***********************************************************************************************************************
@@ -1019,7 +1034,7 @@ void lunchEssais(){
         printf("You already have done all the essais for this run \n");
     }
     else {
-        gen_circuit(shmid, essais_name, true); // génération de la course
+        gen_circuit(shmid, shmid_fsh, essais_name, true); // génération de la course
         bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
         clrscr(); // clear de la console
         showRun(); // affichage des stats globales des voitures
@@ -1049,19 +1064,19 @@ void lunchQualif(){
         // gestion des qualif
         // Q1
         clrscr();
-        gen_circuit(shmid, "Qualif -- Q1", false);
+        gen_circuit(shmid, shmid_fsh, "Qualif -- Q1", false);
         bubbleSortCarList();
         setOut(shmid, 5); // 5 dernières OUT
         // Q2
         clrscr();
         resetTimeCar();
-        gen_circuit(shmid, "Qualif -- Q2", false);
+        gen_circuit(shmid, shmid_fsh, "Qualif -- Q2", false);
         bubbleSortCarList();
         setOut(shmid, 10); // 10 dernières OUT
         // Q3
         clrscr();
         resetTimeCar();
-        gen_circuit(shmid, "Qualif -- Q3", false);
+        gen_circuit(shmid, shmid_fsh, "Qualif -- Q3", false);
         bubbleSortCarList();
         // affichage final
         bubbleSortCarList();
@@ -1093,7 +1108,7 @@ void lunchRun(){
     }
     else {
         // gestion de la course
-        gen_circuit(shmid, "Course", false); // génération de la course
+        gen_circuit(shmid, shmid_fsh, "Course", false); // génération de la course
         bubbleSortCarList(); // tri des voitures sur base de leur temps totaux
         clrscr(); // clear de la console
         showRun(); // affichage des stats globales des voitures
@@ -1139,7 +1154,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     // init memory
-    init_mem(shmid);
+    init_mem(shmid,shmid_fsh);
     // gestion du circuit
     int choice_type = choiceTypeOfRun();
     if (choice_type == 1) {
@@ -1153,7 +1168,7 @@ int main(int argc, char *argv[]) {
     }
 
     // fin de la course
-    shmctl(shmid,IPC_RMID,NULL); // suppression de la memoire partagée
+    shmctl(shmid,IPC_RMID, NULL); // suppression de la memoire partagée
     shmctl(shmid_fsh, IPC_RMID, NULL);
     return 0; // fin du programme
 }
