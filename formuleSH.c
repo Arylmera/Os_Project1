@@ -18,13 +18,14 @@
 #include <stdbool.h> // bool
 #include <unistd.h> //fork
 #include <string.h> //memset
-#include <sys/wait.h> //wait
+//#include <sys/wait.h> //wait
 #include <sys/stat.h> // mkdir
-#include <signal.h>
+//#include <signal.h>
 #include <sys/shm.h>
 #include <ctype.h>
 #include <semaphore.h> // semaphore
 #include <sys/time.h>
+#include <fcntl.h>
 
 /***********************************************************************************************************************
  *                               définitions
