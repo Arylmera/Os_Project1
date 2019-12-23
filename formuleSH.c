@@ -212,7 +212,7 @@ int gen_circuit(int shmid,int shmid_fsh,char* entry, bool time){
         printf(MAG"For how long does the cars have to run (in seconds)? \n"RESET);
         scanf("%s",time_string);
         time_lenght = (int) atoi(time_string);
-        printf(MAG"Let's make the cars run for %d sec \n\t if a section is start they will before finish it then come back to the stand... \n"RESET,time_lenght);
+        printf(MAG"Let's make the cars run for %d sec \n\t if a turn is start they will before finish it then come back to the stand... \n"RESET,time_lenght);
     }
     //fork
     for (int car = 0; car < CAR; car++) {
