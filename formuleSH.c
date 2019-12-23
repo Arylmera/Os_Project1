@@ -1096,6 +1096,7 @@ int main(int argc, char *argv[]) {
     shmctl(shmid,IPC_RMID, NULL); // suppression de la memoire partagée
     shmctl(shmid_fsh, IPC_RMID, NULL);
     return 0; // fin du programme
+    //
 }
 
 /***********************************************************************************************************************
