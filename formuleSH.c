@@ -110,7 +110,7 @@ f1 init_car(int carNumber){
 }
 
 /**
-* generation de la liste des structur voitrure sur base de la liste des numero de voitures
+* generation de la liste des structures voitrures sur base de la liste des numeros de voitures
 * @return void
 */
 void init_car_list(int *carListNumber){
@@ -956,7 +956,7 @@ void raceLoading(){
 /**
  * Gestion des essais d'un course
  */
-void lunchEssais(){
+void launchEssais(){
     char essais_name[12];
     sprintf(essais_name, "Essais-%d", (essais + 1));
     if(essais >= 3){ // si tout les essais ont déja ete fait
@@ -981,7 +981,7 @@ void lunchEssais(){
 /**
  * Gestion des qualif d'une course
  */
-void lunchQualif(){
+void launchQualif(){
     if(essais < 3){
         printf("please run all the essais before.\n");
     }
@@ -1024,7 +1024,7 @@ void lunchQualif(){
 /**
  * Gestion de la crouse en elle même
  */
-void lunchRun(){
+void launchRun(){
     if(essais < 3 || qualif != 1){
         printf("Please run all the essais and qualifications before.\n");
         return;
@@ -1084,13 +1084,13 @@ int main(int argc, char *argv[]) {
     // gestion du circuit
     int choice_type = choiceTypeOfRun();
     if (choice_type == 1) {
-        lunchEssais();
+        launchEssais();
     }
     else if (choice_type == 2){
-        lunchQualif();
+        launchQualif();
     }
     else if (choice_type == 3){
-        lunchRun();
+        lal();
     }
 
     // fin de la course
