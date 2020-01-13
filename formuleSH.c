@@ -18,9 +18,7 @@
 #include <stdbool.h> // bool
 #include <unistd.h> //fork
 #include <string.h> //memset
-//#include <sys/wait.h> //wait
 #include <sys/stat.h> // mkdir
-//#include <signal.h>
 #include <sys/shm.h>
 #include <ctype.h>
 #include <semaphore.h> // semaphore
@@ -1090,7 +1088,7 @@ int main(int argc, char *argv[]) {
         launchQualif();
     }
     else if (choice_type == 3){
-        lal();
+        launchRun();
     }
 
     // fin de la course
